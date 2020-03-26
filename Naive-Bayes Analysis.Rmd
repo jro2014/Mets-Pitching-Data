@@ -1,0 +1,126 @@
+---
+title: "Naive-Bayes Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(RWeka)
+library(ggplot2)
+```
+
+First, the data was subset to include only a few variables that will be useful for the Naive-Bayes models. Player name, zone, balls, strikes, stand, pitch type, and release speed were selected. Next, a swing variable was created to show whether the batter took a swing at that particular pitch. This includes swinging strikes, hits, and foul balls. Bunts were not included in this. There were some null values and some blank values that were removed during this process as well. This is a binary variable with 1 signaling a swing and 0 signaling no swing. Finally, the data was subset by pitcher for individual analysis. 
+
+```{r, results='hide'}
+nb.pitch <- read.csv("/Users/Jacksmac/Desktop/IST 707 Project/Project Data.csv")
+
+## Which variables are we going to use for predicting swings? 
+### Zone (15), balls(25), strikes (26), stand (18), pitch type (1), description 10, release speed (3) 
+colnames(nb.pitch)
+head(nb.pitch$description)
+### Subset new variables
+nb.new <- subset(nb.pitch, select = c("player_name", "zone", "balls", "strikes", "stand", "pitch_type", "release_speed"))
+
+### Adding Swing (1) or No Swing (0) binary variable
+nb.new$swing <- 0
+swings <- grep("swing", nb.pitch$description)
+fouls <- grep("foul", nb.pitch$description)
+hits <- grep("hit", nb.pitch$description)
+nulls <- grep("null", nb.new$pitch_type)
+nb.new[c(swings, hits, fouls), "swing"] <- 1
+nb.new <- nb.new[-nulls, ]
+nb.new <- nb.new[-c(12307, 20971), ] ##Removing blank pitch types
+str(nb.new)
+nb.new$swing <- as.factor(nb.new$swing)
+nb.new$balls <- as.factor(nb.new$balls)
+nb.new$strikes <- as.factor(nb.new$strikes)
+nb.new$pitch_type <- droplevels(nb.new$pitch_type)
+
+### Subsetting the new df by pticher 
+unique(nb.new$player_name)
+nb.diaz <- subset(nb.new, nb.new$player_name == "Edwin Diaz")
+nb.degrom <- subset(nb.new, nb.new$player_name == "Jacob deGrom")
+nb.stroman <- subset(nb.new, nb.new$player_name == "Marcus Stroman")
+nb.lugo <- subset(nb.new, nb.new$player_name == "Seth Lugo")
+nb.synd <- subset(nb.new, nb.new$player_name == "Noah Syndergaard")
+```
+
+```{r}
+#Swins by pitcher and pitch type
+ggplot(nb.new, aes(x = pitch_type, fill = swing)) +
+  geom_bar() +
+  facet_wrap(~player_name, nrow = 3) + 
+  ggtitle("Swings by Pitch Type and Pitcher")
+
+#Dist of swings and no swings 
+ggplot(nb.new, aes(x = swing)) +
+  geom_bar(fill = "blue") +
+  ggtitle("Distribution of Swings")
+```
+# Naive-Bayes Model for all Pitchers to predict swing 
+```{r}
+NB <- make_Weka_classifier("weka/classifiers/bayes/NaiveBayes")
+nb.swing.full <- NB(swing ~ ., data = nb.new)
+eval.swing.full <- evaluate_Weka_classifier(nb.swing.full, numFolds = 10, seed = 1, class = TRUE, useSupervisedDiscretization = TRUE)
+eval.swing.full
+```
+
+
+## Sampling the data
+```{r}
+set.seed(1)
+N <- round(.65 * nrow(nb.new))
+sample.index <- sample(nrow(nb.new), size = N, replace = FALSE)
+nb.sample <- nb.new[sample.index, ]
+
+nb.swing.sample <- NB(swing ~ ., data = nb.sample)
+eval.swing.sample <- evaluate_Weka_classifier(nb.swing.sample, numFolds = 10, seed = 1, class = TRUE, useSupervisedDiscretization = TRUE)
+eval.swing.sample             
+```
+
+
+
+# Naive-Bayes to predict swings by pitcher
+## Degrom
+```{r}
+nb.swing.degrom <- NB(swing ~ ., data = nb.degrom)
+eval.swing.degrom <- evaluate_Weka_classifier(nb.swing.degrom, numFolds = 10, seed = 1, class = TRUE, useSupervisedDiscretization = TRUE)
+eval.swing.degrom
+
+```
+## Diaz
+```{r}
+nb.swing.diaz <- NB(swing ~ ., data = nb.diaz)
+eval.swing.diaz <- evaluate_Weka_classifier(nb.swing.diaz, numFolds = 10, seed = 1, class = TRUE, useSupervisedDiscretization = TRUE)
+eval.swing.diaz
+```
+
+## Stroman
+```{r}
+nb.swing.stroman <- NB(swing ~ ., data = nb.stroman)
+eval.swing.stroman <- evaluate_Weka_classifier(nb.swing.stroman , numFolds = 10, seed = 1, class = TRUE, useSupervisedDiscretization = TRUE)
+eval.swing.stroman 
+```
+
+## Lugo
+```{r}
+nb.swing.lugo <- NB(swing ~ ., data = nb.lugo)
+eval.swing.lugo <- evaluate_Weka_classifier(nb.swing.lugo , numFolds = 10, seed = 1, class = TRUE, useSupervisedDiscretization = TRUE)
+eval.swing.lugo 
+```
+
+## Syndergaard
+```{r}
+nb.swing.synd <- NB(swing ~ ., data = nb.synd)
+eval.swing.synd <- evaluate_Weka_classifier(nb.swing.synd , numFolds = 10, seed = 1, class = TRUE, useSupervisedDiscretization = TRUE)
+eval.swing.synd 
+```
+
+
+
+
+
+
+
+
+
