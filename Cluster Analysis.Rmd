@@ -1,0 +1,91 @@
+---
+title: "Cluster Analysis"
+author: "Jack R. O'Connor" 
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, results='hide'}
+# Loading Data
+pitch <- read.csv("/Users/Jacksmac/Desktop/IST 707 Project/Project Data.csv", na.strings = "NA")
+str(pitch)
+
+# Looking for NA values
+
+sapply(pitch, function(x) {sum(is.na(x))})
+
+## Removing NA Columns  
+pitch.new <- pitch[ , -c(11,12,13,14,40,41,43)]
+```
+
+Subsetting with release speed, release spin rate, realse pos x and z, pfx_x, pfx_z, plate_x, plate_z
+
+Will add in zone and pitch type later
+```{r}
+pitch.cluster.data <- pitch.new[ , c(1, 11, 3,  4,  5, 24, 25, 26, 27, 50)]
+str(pitch.cluster.data)
+```
+
+Removing NA values
+```{r}
+pitch.cluster.data <- na.omit(pitch.cluster.data)
+```
+
+Everything is factored. Unfactoring everything 
+```{r}
+p <- apply(pitch.cluster.data, 2, function(x) {as.numeric(as.character(x))}) 
+str(p)
+cluster.pitch <- as.data.frame(p)
+str(cluster.pitch)
+```
+
+Standardizing the data except zone
+```{r}
+# Standardize function
+standardize.fun <- function(x) 
+{
+  std <- sd(x, na.rm = TRUE)
+  mu <- mean(x, na.rm = TRUE)
+  return((x-mu)/std)
+}
+
+pitch.cluster.standard <- as.data.frame(round(apply(cluster.pitch, 2, standardize.fun), 4))
+str(pitch.cluster.standard)
+```
+
+Adding in pitch_type and zone
+
+```{r}
+pitch.cluster.standard$pitch_type <- pitch.cluster.data$pitch_type
+pitch.cluster.standard$zone <- pitch.cluster.data$zone
+str(pitch.cluster.standard)
+
+pitch.cluster.standard <- na.omit(pitch.cluster.standard)
+```
+
+Writing the csv file for Weka Analysis
+```{r}
+write.csv(pitch.cluster.standard, file = "pitch.cluster.standard.csv", sep = ",")
+```
+
+
+
+Optimal number of clusters 
+```{r}
+k.max <- 10
+wss <- sapply(1:k.max, function(k){kmeans(pitch.cluster.standard[ , -c(1:2)], k, nstart = 50, iter.max = 20)$tot.withinss})
+wss
+
+plot(1:k.max, wss, type = "b")
+```
+
+For this analysis, either 5 or 6 clusters will work based on the above chart. It looks like 6 clusters is where the graph really starts to level off. 
+
+
+
+
+
+
