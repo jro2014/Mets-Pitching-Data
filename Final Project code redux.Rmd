@@ -1,0 +1,1142 @@
+---
+title: "IST707 Final Project"
+author: "rickbump"
+date: "3/10/2020"
+output: word_document
+---
+
+---
+title: "707 Group Project"
+author: "rickbump"
+date: "2/6/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#Loading libraries
+library(rpart,quietly = TRUE)
+library(caret,quietly = TRUE)
+library(rpart.plot,quietly = TRUE)
+library(rattle)
+library(ggpubr)
+library(dplyr)
+library(tidyverse)  # data manipulation
+library(cluster)    # clustering algorithms
+library(factoextra) # clustering algorithms & visualization
+library(arules)
+library(arulesViz)
+library(GGally)
+
+library(tree)
+library(party)
+library(RColorBrewer)
+library(RWeka)
+library(naivebayes)
+library(e1071)
+library(modeltools)
+library(tidyr)
+library(ggplot2)
+library(Rfast)
+library(partykit)
+library(randomForest)
+require(caTools)
+library(sqldf)
+library(biclust)
+library(binr)
+
+library(funModeling) 
+library(Hmisc)
+library(DataExplorer)
+library(stats)
+library(cluster)
+library(fpc)
+library(factoextra)
+
+```
+
+```{r load data}
+setwd("~/Library/Mobile Documents/com~apple~CloudDocs/Personal/School/IST707 Data Analytics/Project")
+pitchData <- read.csv("pitch5data.csv", stringsAsFactors = FALSE)
+str(pitchData)
+```
+
+```{r clean pitchData in to one large data set}
+##remove
+pitchData <- pitchData[,-11:-14] ##delete spin direction, spin_rate_deprecated, break_angle_deprecated and break_length_deprecated
+pitchData <- pitchData[,-36:-37]
+pitchData <- pitchData[,-37] ##remove umpire.  all values are NA
+pitchData$batter <- as.factor(pitchData$batter)
+pitchData$player_name <- as.factor(pitchData$player_name)
+pitchData$game_year <- as.factor(pitchData$game_year)
+pitchData$inning <- as.factor(pitchData$inning)
+pitchData$pitcher.1 <- as.factor(pitchData$pitcher.1)
+pitchData$fielder_2 <- as.factor(pitchData$fielder_2)
+pitchData$fielder_2.1 <- as.factor(pitchData$fielder_2.1)
+pitchData$fielder_3 <- as.factor(pitchData$fielder_3)
+pitchData$fielder_4 <- as.factor(pitchData$fielder_4)
+pitchData$fielder_5 <- as.factor(pitchData$fielder_5)
+pitchData$fielder_6 <- as.factor(pitchData$fielder_6)
+pitchData$fielder_7 <- as.factor(pitchData$fielder_7)
+pitchData$fielder_8 <- as.factor(pitchData$fielder_8)
+pitchData$fielder_9 <- as.factor(pitchData$fielder_9)
+pitchData$batter <- as.factor(pitchData$batter)
+pitchData$pitcher <- as.factor(pitchData$pitcher)
+pitchData$outs_when_up <- as.factor(pitchData$outs_when_up)
+pitchData$inning <- as.factor(pitchData$inning)
+pitchData$stand <- as.factor(pitchData$stand)
+pitchData$zone <- as.integer(pitchData$zone)
+pitchData$zone <- replace(as.integer(pitchData$zone), is.na(pitchData$zone),0)
+pitchData$effective_speed <- as.numeric(pitchData$effective_speed)
+pitchData$effective_speed <- replace(as.integer(pitchData$effective_speed), is.na(pitchData$effective_speed),0)
+
+```
+
+
+```{r EDA on the basic data set}
+basic_eda <- function(data) {
+  glimpse(data)
+  introduce(data)
+  plot_intro(data)
+  plot_missing(data)
+  df_status(data)
+  freq(data) 
+  profiling_num(data)
+  plot_num(data)
+  DataExplorer::plot_histogram(data)
+  plot_density(data)
+  describe(data)
+  
+  
+  plot_boxplot(data, by= 'effective_speed',  ncol = 3)
+
+  
+}
+
+basic_eda(pitchData)
+```
+
+
+
+```{r data transformation and discretization}
+
+pitchPredict <- data.frame(pitchData$pitch_name)
+colnames(pitchPredict) <- "pitch_name"
+pitchPredict$zone <- pitchData$zone
+pitchPredict$speed <- pitchData$effective_speed
+pitchPredict$player_name <- pitchData$player_name
+pitchPredict$inning <- pitchData$inning
+pitchPredict$outs <- pitchData$outs_when_up
+pitchPredict$bat_side <- pitchData$stand
+
+##Bucketize effective pitch speed
+pitchPredict$speedB <- as.character(cut(pitchPredict$speed, c(0, 65, 70, 75, 80, 85, 90, 95, 100, 105)))
+pitchPredict$speedB <- replace(as.character(pitchPredict$speedB), is.na(pitchPredict$speedB),0)
+
+##Assign numerical values to the pitch speed buckets
+for (i in 1:nrow(pitchPredict)) {
+  if (pitchPredict$speedB[i] == "(0,65]") {
+    pitchPredict$speedB[i] <- "1"
+  } else if (pitchPredict$speedB[i] == "(65,70]") {
+    pitchPredict$speedB[i] <- "2"
+  } else if (pitchPredict$speedB[i] == "(70,75]") {
+    pitchPredict$speedB[i] <- "3"
+  } else if (pitchPredict$speedB[i] == "(75,80]") {
+    pitchPredict$speedB[i] <- "4"    
+  } else if (pitchPredict$speedB[i] == "(80,85]") {
+    pitchPredict$speedB[i] <- "5"
+  } else if (pitchPredict$speedB[i] == "(85,90]") {
+    pitchPredict$speedB[i] <- "6"
+  } else if (pitchPredict$speedB[i] == "(90,95]") {
+    pitchPredict$speedB[i] <- "7"
+  } else if (pitchPredict$speedB[i] == "(95,100]") {
+    pitchPredict$speedB[i] <- "8"
+  } else if (pitchPredict$speedB[i] == "(100,105]") {
+    pitchPredict$speedB[i] <- "9"
+  } else {
+    pitchPredict$speedB[i] <- "1"
+  }
+}
+
+## Create "count" field
+## values: 0-0, 0-1, 0-2, 1-0, 1-1, 1-2, 1-3, 2-0, 2-1, 2-2, 2-3
+pitchPredict$count <- as.factor(paste(pitchData$balls, "-",pitchData$strikes))
+pitchPredict$speed <- as.numeric(pitchPredict$speed)
+
+for (i in 1:nrow(pitchData)) {
+  if (pitchData$balls[i] > pitchData$strikes[i]) {
+    pitchPredict$sumCount[i] <- "Behind"
+  } else if (pitchData$balls[i] < pitchData$strikes[i]) {
+    pitchPredict$sumCount[i] <- "Ahead"
+  } else {
+    pitchPredict$sumCount[i] <- "Even"
+  }
+}
+pitchPredict$sumCount <- as.factor(pitchPredict$sumCount)
+
+## Create "runners" field
+## values: empty, first, second, third, first&second, first&third, second&third and full
+##delete <- as.factor(as.character(pitchData$balls) + as.character(pitchData$strikes))
+pitchPredict$bases <- as.integer(pitchData$on_1b)
+pitchPredict$bases <- replace(as.integer(pitchPredict$bases), is.na(pitchPredict$bases),0)
+pitchPredict$bases <- replace(as.integer(pitchPredict$bases), pitchPredict$bases>0, 100)
+
+bases <- as.integer(pitchData$on_2b)
+bases <- replace(as.integer(bases), is.na(bases),0)
+pitchPredict$bases <- pitchPredict$bases + replace(as.integer(bases), bases>0, 20)
+
+bases <- as.integer(pitchData$on_3b)
+bases <- replace(as.integer(bases), is.na(bases),0)
+pitchPredict$bases <- pitchPredict$bases + replace(as.integer(bases), bases>0, 3)
+pitchPredict$bases <- as.factor(pitchPredict$bases)
+
+## Winning or losing
+for (i in 1:nrow(pitchData)) {
+if (pitchData$home_team[i] == "NYM") {
+  if (pitchData$home_score[i] > pitchData$away_score[i]) {
+    pitchPredict$scoring[i] <- "Winning"
+  } else if (pitchData$home_score[i] < pitchData$away_score[i]) {
+    pitchPredict$scoring[i] <- "Losing"
+  } else {
+    pitchPredict$scoring[i] <- "Tied"
+  }
+}
+if (pitchData$away_team[i] == "NYM") {
+  if (pitchData$home_score[i] < pitchData$away_score[i]) {
+    pitchPredict$scoring[i] <- "Winning"
+  } else if (pitchData$home_score[i] > pitchData$away_score[i]) {
+    pitchPredict$scoring[i] <- "Losing"
+  } else {
+    pitchPredict$scoring[i] <- "Tied"
+  }
+}
+}
+pitchPredict$scoring <- as.factor(pitchPredict$scoring)
+
+##Assign numerical values to pitch names
+for (i in 1:nrow(pitchPredict)) {
+  if (pitchPredict$pitch_name[i]== "2-Seam Fastball") {
+    pitchPredict$pitch_num[i] <- "1"
+  } else if (pitchPredict$pitch_name[i]== "4-Seam Fastball") {
+    pitchPredict$pitch_num[i] <- "2"
+  } else if (pitchPredict$pitch_name[i]== "Changeup") {
+    pitchPredict$pitch_num[i] <- "3"
+  } else if (pitchPredict$pitch_name[i]== "Curveball") {
+    pitchPredict$pitch_num[i] <- "4"
+  } else if (pitchPredict$pitch_name[i]== "Cutter") {
+    pitchPredict$pitch_num[i] <- "5"
+  } else if (pitchPredict$pitch_name[i]== "Slider") {
+    pitchPredict$pitch_num[i] <- "6"
+  } else if (pitchPredict$pitch_name[i]== "Sinker") {
+    pitchPredict$pitch_num[i] <- "7"
+  } else if (pitchPredict$pitch_name[i]== "Pitch Out") {
+    pitchPredict$pitch_num[i] <- "8"
+  } else if (pitchPredict$pitch_name[i]== "") {
+    pitchPredict$pitch_num[i] <- "9"
+  } 
+}
+
+##Creat variable "bat_side"
+for (i in 1:nrow(pitchPredict)) {
+  if (pitchPredict$bat_side[i]== "R") {
+    pitchPredict$batSide[i] <- "1"
+  } else if (pitchPredict$bat_side[i]== "L") {
+    pitchPredict$batSide[i] <- "2"
+  }  
+}
+
+##Create the count variable
+for (i in 1:nrow(pitchPredict)) {
+  if (pitchPredict$count[i]== "0 - 0") {
+    pitchPredict$countB[i] <- "1"
+  } else if (pitchPredict$count[i]== "0 - 1") {
+    pitchPredict$countB[i] <- "2"
+  } else if (pitchPredict$count[i]== "0 - 2") {
+    pitchPredict$countB[i] <- "3"
+  } else if (pitchPredict$count[i]== "1 - 0") {
+    pitchPredict$countB[i] <- "4"
+  } else if (pitchPredict$count[i]== "1 - 1") {
+    pitchPredict$countB[i] <- "5"
+  } else if (pitchPredict$count[i]== "1 - 2") {
+    pitchPredict$countB[i] <- "6"
+  } else if (pitchPredict$count[i]== "2 - 0") {
+    pitchPredict$countB[i] <- "7"
+  } else if (pitchPredict$count[i]== "2 - 1") {
+    pitchPredict$countB[i] <- "8"
+  } else if (pitchPredict$count[i]== "2 - 2") {
+    pitchPredict$countB[i] <- "9"
+  } else if (pitchPredict$count[i]== "3 - 0") {
+    pitchPredict$countB[i] <- "10"
+  } else if (pitchPredict$count[i]== "3 - 1") {
+    pitchPredict$countB[i] <- "11"
+  } else if (pitchPredict$count[i]== "3 - 2") {
+    pitchPredict$countB[i] <- "12"
+  }  
+}
+
+##Create the summary count field "sumCount"
+for (i in 1:nrow(pitchPredict)) {
+  if (pitchPredict$sumCount[i]== "Behind") {
+    pitchPredict$sumCountB[i] <- "1"
+  } else if (pitchPredict$sumCount[i]== "Even") {
+    pitchPredict$sumCountB[i] <- "2"
+  } else if (pitchPredict$sumCount[i]== "Ahead") {
+    pitchPredict$sumCountB[i] <- "3"
+  }   
+}
+
+#Create winning/losing variable "scoring"
+for (i in 1:nrow(pitchPredict)) {
+  if (pitchPredict$scoring[i]== "Losing") {
+    pitchPredict$scoringB[i] <- "1"
+  } else if (pitchPredict$scoring[i]== "Tied") {
+    pitchPredict$scoringB[i] <- "2"
+  } else if (pitchPredict$scoring[i]== "Winning") {
+    pitchPredict$scoringB[i] <- "3"
+  }   
+}
+
+##Convert variables to factors
+pitchPredict$pitch_num<- as.factor(pitchPredict$pitch_num)
+pitchPredict$zone<- as.integer(pitchPredict$zone)
+pitchPredict$speedB <- as.integer(pitchPredict$speedB)
+pitchPredict$inning<- as.integer(pitchPredict$inning)
+pitchPredict$outs<- as.integer(pitchPredict$outs)
+pitchPredict$batSide<- as.integer(pitchPredict$batSide)
+pitchPredict$countB<- as.integer(pitchPredict$countB)
+pitchPredict$sumCountB<- as.integer(pitchPredict$sumCountB)
+pitchPredict$bases<- as.integer(pitchPredict$bases)
+pitchPredict$scoringB <- as.integer(pitchPredict$scoringB)
+
+
+```
+
+
+
+```{r Lugo decision tree}
+
+lugoData <- pitchPredict[pitchPredict$player_name=="Seth Lugo",]
+
+freq(lugoData$pitch_name)
+freq(lugoData$inning)
+freq(lugoData$speedB)
+
+# Create actual random test data.  Followed guide in Homework hints
+splitPct <- .3
+lugoSplit  <- sample(nrow(lugoData), nrow(lugoData)*splitPct)
+testLugo <- lugoData[lugoSplit,]
+dim(testLugo)
+
+## Run decision tree analysis
+lugoTree1 <- rpart(sumCountB ~ pitch_num + zone, data=lugoData)
+lugoTree2 <- rpart(pitch_num ~ sumCountB + outs + scoringB + inning + bases, data=lugoData)
+lugoTree3 <- rpart(pitch_num ~ zone + speedB, data=lugoData)
+lugoTree4 <- rpart(pitch_num ~ sumCountB + outs + scoringB + inning + batSide + bases, data=lugoData)
+
+## Prediction
+
+predictLugo1 <- predict(lugoTree1, testLugo)
+predictLugo2 <- predict(lugoTree2, testLugo)
+predictLugo3 <- predict(lugoTree3, testLugo)
+predictLugo4 <- predict(lugoTree4, testLugo)
+
+maxValue <- max.col(predictLugo2, "first")
+predPCT <- predictLugo2[cbind(1:nrow(predictLugo2), maxValue)]
+predLugo <- colnames(predictLugo2)[maxValue]
+predictLugo <- as.data.frame(cbind(predPCT, predLugo, testLugo[13]))
+
+maxValue
+predPCT
+predLugo
+predictLugo
+str(testLugo)
+
+for (l in 1:nrow(predictLugo)) {
+if (predictLugo$predLugo[l] == predictLugo$pitch_num[l]) {
+    predictLugo$accuracy[l] <- 1
+  } else {
+    predictLugo$accuracy[l] <- 0
+  }
+}
+
+confusionMatrix(predictLugo$predLugo,predictLugo$pitch_num)
+(sum(predictLugo$accuracy)/nrow(predictLugo))
+
+conTable <- table(unlist(predictLugo), unlist(testLugo$pitch_name))
+accPred <- conTable[1] + conTable[10] + conTable[19] + conTable[28] + conTable[37] + conTable[46] + conTable[55] + conTable[64]
+accRate <- accPred/sum(conTable)
+accRate
+
+
+##rpart.plot(dTree, box.palette = 0)
+##rpart.plot(lugoTree1, box.palette = "blue")
+
+freq(lugoData$pitch_name)
+freq(lugoData$inning)
+
+plotcp(lugoTree1)
+fancyRpartPlot(lugoTree1)
+printcp(lugoTree1)
+
+plotcp(lugoTree2)
+fancyRpartPlot(lugoTree2)
+printcp(lugoTree2)
+
+plotcp(lugoTree3)
+fancyRpartPlot(lugoTree3)
+printcp(lugoTree3)
+
+plotcp(lugoTree4)
+fancyRpartPlot(lugoTree4)
+printcp(lugoTree4)
+
+
+```
+
+
+```{r Syndergaard decision tree}
+
+dataSyndergaard <- pitchPredict[pitchPredict$player_name=="Noah Syndergaard",]
+
+str(dataSyndergaard)
+
+syndergaardData <- dataSyndergaard[,-4]
+syndergaardData$pitch_name<- as.character(dataSyndergaard$pitch_name)
+##syndergaardData$player_name<- as.character(dataSyndergaard$player_name)
+syndergaardData$inning<- as.character(dataSyndergaard$inning)
+syndergaardData$outs<- as.character(dataSyndergaard$outs)
+syndergaardData$bat_side<- as.character(dataSyndergaard$bat_side)
+syndergaardData$count<- as.character(dataSyndergaard$count)
+syndergaardData$sumCount<- as.character(dataSyndergaard$sumCount)
+syndergaardData$bases<- as.character(dataSyndergaard$bases)
+syndergaardData$scoring<- as.character(dataSyndergaard$scoring)
+
+unique(pitchData$pitch_name)
+
+for (i in 1:nrow(syndergaardData)) {
+  if (syndergaardData$pitch_name[i]== "2-Seam Fastball") {
+    syndergaardData$pitch_name[i] <- "1"
+  } else if (syndergaardData$pitch_name[i]== "4-Seam Fastball") {
+    syndergaardData$pitch_name[i] <- "2"
+  } else if (syndergaardData$pitch_name[i]== "Changeup") {
+    syndergaardData$pitch_name[i] <- "3"
+  } else if (syndergaardData$pitch_name[i]== "Curveball") {
+    syndergaardData$pitch_name[i] <- "4"
+  } else if (syndergaardData$pitch_name[i]== "Cutter") {
+    syndergaardData$pitch_name[i] <- "5"
+  } else if (syndergaardData$pitch_name[i]== "Slider") {
+    syndergaardData$pitch_name[i] <- "6"
+  } else if (syndergaardData$pitch_name[i]== "Sinker") {
+    syndergaardData$pitch_name[i] <- "7"
+  } else if (syndergaardData$pitch_name[i]== "Pitch Out") {
+    syndergaardData$pitch_name[i] <- "8"
+  } else if (syndergaardData$pitch_name[i]== "") {
+    syndergaardData$pitch_name[i] <- "9"
+  } 
+}
+
+syndergaardData$speed <- as.numeric(syndergaardData$speed)
+
+for (i in 1:nrow(syndergaardData)) {
+  if (syndergaardData$bat_side[i]== "R") {
+    syndergaardData$bat_side[i] <- "1"
+  } else if (syndergaardData$bat_side[i]== "L") {
+    syndergaardData$bat_side[i] <- "2"
+  }  
+}
+
+for (i in 1:nrow(syndergaardData)) {
+  if (syndergaardData$count[i]== "0 - 0") {
+    syndergaardData$count[i] <- "1"
+  } else if (syndergaardData$count[i]== "0 - 1") {
+    syndergaardData$count[i] <- "2"
+  } else if (syndergaardData$count[i]== "0 - 2") {
+    syndergaardData$count[i] <- "3"
+  } else if (syndergaardData$count[i]== "1 - 0") {
+    syndergaardData$count[i] <- "4"
+  } else if (syndergaardData$count[i]== "1 - 1") {
+    syndergaardData$count[i] <- "5"
+  } else if (syndergaardData$count[i]== "1 - 2") {
+    syndergaardData$count[i] <- "6"
+  } else if (syndergaardData$count[i]== "2 - 0") {
+    syndergaardData$count[i] <- "7"
+  } else if (syndergaardData$count[i]== "2 - 1") {
+    syndergaardData$count[i] <- "8"
+  } else if (syndergaardData$count[i]== "2 - 2") {
+    syndergaardData$count[i] <- "9"
+  } else if (syndergaardData$count[i]== "3 - 0") {
+    syndergaardData$count[i] <- "10"
+  } else if (syndergaardData$count[i]== "3 - 1") {
+    syndergaardData$count[i] <- "11"
+  } else if (syndergaardData$count[i]== "3 - 2") {
+    syndergaardData$count[i] <- "12"
+  }  
+}
+
+for (i in 1:nrow(syndergaardData)) {
+  if (syndergaardData$sumCount[i]== "Behind") {
+    syndergaardData$sumCount[i] <- "1"
+  } else if (syndergaardData$sumCount[i]== "Even") {
+    syndergaardData$sumCount[i] <- "2"
+  } else if (syndergaardData$sumCount[i]== "Ahead") {
+    syndergaardData$sumCount[i] <- "3"
+  }   
+}
+
+for (i in 1:nrow(syndergaardData)) {
+  if (syndergaardData$scoring[i]== "Losing") {
+    syndergaardData$scoring[i] <- "1"
+  } else if (syndergaardData$scoring[i]== "Tied") {
+    syndergaardData$scoring[i] <- "2"
+  } else if (syndergaardData$scoring[i]== "Winning") {
+    syndergaardData$scoring[i] <- "3"
+  }   
+}
+
+
+syndergaardData$pitch_name<- as.factor(syndergaardData$pitch_name)
+syndergaardData$zone<- as.integer(syndergaardData$zone)
+syndergaardData$speedB <- as.integer(syndergaardData$speedB)
+syndergaardData$inning<- as.integer(syndergaardData$inning)
+syndergaardData$outs<- as.integer(syndergaardData$outs)
+syndergaardData$bat_side<- as.integer(syndergaardData$bat_side)
+syndergaardData$count<- as.integer(syndergaardData$count)
+syndergaardData$sumCount<- as.integer(syndergaardData$sumCount)
+syndergaardData$bases<- as.integer(syndergaardData$bases)
+syndergaardData$scoring<- as.integer(syndergaardData$scoring)
+
+summary(syndergaardData)
+str(syndergaardData)
+unique(syndergaardData)
+
+# Create actual random test data.  Followed guide in Homework hints
+splitPct <- .3
+syndergaardSplit  <- sample(nrow(syndergaardData), nrow(syndergaardData)*splitPct)
+testSyndergaard <- syndergaardData[syndergaardSplit,]
+dim(testSyndergaard)
+
+## Run decision tree analysis
+syndergaardTree1 <- rpart(pitch_name ~ sumCount, data=syndergaardData)
+syndergaardTree2 <- rpart(pitch_name ~ sumCount + outs +scoring + inning, data=syndergaardData)
+syndergaardTree3 <- rpart(pitch_name ~ zone + speedB, data=syndergaardData)
+syndergaardTree4 <- rpart(pitch_name ~ sumCount + outs + scoring + inning + bat_side + bases, data=syndergaardData)
+syndergaardTree5 <- rpart(speedB ~ pitch_name + inning, data=syndergaardData)
+
+## Prediction
+
+predictSyndergaard <- predict(syndergaardTree3, testSyndergaard)
+
+maxValue <- max.col(predictSyndergaard, "first")
+predPCT <- predictSyndergaard[cbind(1:nrow(predictSyndergaard), maxValue)]
+predSyndergaard <- colnames(predictSyndergaard)[maxValue]
+predictSyndergaard <- as.data.frame(cbind(predPCT, predSyndergaard, testSyndergaard[1]))
+
+str(predictSyndergaard)
+maxValue
+predPCT
+predSyndergaard
+predictSyndergaard
+str(testSyndergaard)
+
+for (l in 1:nrow(predictSyndergaard)) {
+if (predictSyndergaard$predSyndergaard[l] == predictSyndergaard$pitch_name[l]) {
+    predictSyndergaard$accuracy[l] <- 1
+  } else {
+    predictSyndergaard$accuracy[l] <- 0
+  }
+}
+
+predictSyndergaard
+
+confusionMatrix(predictSyndergaard$predSyndergaard,predictSyndergaard$pitch_name)
+(sum(predictSyndergaard$accuracy)/nrow(predictSyndergaard))
+
+freq(syndergaardData$pitch_name)
+freq(syndergaardData$inning)
+freq(syndergaardData$speedB)
+
+##rpart.plot(dTree, box.palette = 0)
+rpart.plot(syndergaardTree1, box.palette = "blue")
+
+plotcp(syndergaardTree1)
+fancyRpartPlot(syndergaardTree1)
+printcp(syndergaardTree1)
+
+plotcp(syndergaardTree2)
+fancyRpartPlot(syndergaardTree2)
+printcp(syndergaardTree2)
+
+plotcp(syndergaardTree3)
+fancyRpartPlot(syndergaardTree3)
+printcp(syndergaardTree3)
+
+plotcp(syndergaardTree4)
+fancyRpartPlot(syndergaardTree4)
+printcp(syndergaardTree4)
+
+plotcp(syndergaardTree5)
+fancyRpartPlot(syndergaardTree5)
+printcp(syndergaardTree5)
+
+```
+
+
+```{r DeGrom decision tree}
+
+dataDeGrom <- pitchPredict[pitchPredict$player_name=="Jacob deGrom",]
+
+str(dataDeGrom)
+
+deGromData <- dataDeGrom[,-4]
+deGromData$pitch_name<- as.character(dataDeGrom$pitch_name)
+##deGromData$player_name<- as.character(dataDeGrom$player_name)
+deGromData$inning<- as.character(dataDeGrom$inning)
+deGromData$outs<- as.character(dataDeGrom$outs)
+deGromData$bat_side<- as.character(dataDeGrom$bat_side)
+deGromData$count<- as.character(dataDeGrom$count)
+deGromData$sumCount<- as.character(dataDeGrom$sumCount)
+deGromData$bases<- as.character(dataDeGrom$bases)
+deGromData$scoring<- as.character(dataDeGrom$scoring)
+
+unique(deGromData$pitch_name)
+
+for (i in 1:nrow(deGromData)) {
+  if (deGromData$pitch_name[i]== "2-Seam Fastball") {
+    deGromData$pitch_name[i] <- "1"
+  } else if (deGromData$pitch_name[i]== "4-Seam Fastball") {
+    deGromData$pitch_name[i] <- "2"
+  } else if (deGromData$pitch_name[i]== "Changeup") {
+    deGromData$pitch_name[i] <- "3"
+  } else if (deGromData$pitch_name[i]== "Curveball") {
+    deGromData$pitch_name[i] <- "4"
+  } else if (deGromData$pitch_name[i]== "Cutter") {
+    deGromData$pitch_name[i] <- "5"
+  } else if (deGromData$pitch_name[i]== "Slider") {
+    deGromData$pitch_name[i] <- "6"
+  } else if (deGromData$pitch_name[i]== "Sinker") {
+    deGromData$pitch_name[i] <- "7"
+  } else if (deGromData$pitch_name[i]== "Pitch Out") {
+    deGromData$pitch_name[i] <- "8"
+  } else if (deGromData$pitch_name[i]== "") {
+    deGromData$pitch_name[i] <- "9"
+  } 
+}
+
+deGromData$speed <- as.numeric(deGromData$speed)
+
+for (i in 1:nrow(deGromData)) {
+  if (deGromData$bat_side[i]== "R") {
+    deGromData$bat_side[i] <- "1"
+  } else if (deGromData$bat_side[i]== "L") {
+    deGromData$bat_side[i] <- "2"
+  }  
+}
+
+for (i in 1:nrow(deGromData)) {
+  if (deGromData$count[i]== "0 - 0") {
+    deGromData$count[i] <- "1"
+  } else if (deGromData$count[i]== "0 - 1") {
+    deGromData$count[i] <- "2"
+  } else if (deGromData$count[i]== "0 - 2") {
+    deGromData$count[i] <- "3"
+  } else if (deGromData$count[i]== "1 - 0") {
+    deGromData$count[i] <- "4"
+  } else if (deGromData$count[i]== "1 - 1") {
+    deGromData$count[i] <- "5"
+  } else if (deGromData$count[i]== "1 - 2") {
+    deGromData$count[i] <- "6"
+  } else if (deGromData$count[i]== "2 - 0") {
+    deGromData$count[i] <- "7"
+  } else if (deGromData$count[i]== "2 - 1") {
+    deGromData$count[i] <- "8"
+  } else if (deGromData$count[i]== "2 - 2") {
+    deGromData$count[i] <- "9"
+  } else if (deGromData$count[i]== "3 - 0") {
+    deGromData$count[i] <- "10"
+  } else if (deGromData$count[i]== "3 - 1") {
+    deGromData$count[i] <- "11"
+  } else if (deGromData$count[i]== "3 - 2") {
+    deGromData$count[i] <- "12"
+  }  
+}
+
+for (i in 1:nrow(deGromData)) {
+  if (deGromData$sumCount[i]== "Behind") {
+    deGromData$sumCount[i] <- "1"
+  } else if (deGromData$sumCount[i]== "Even") {
+    deGromData$sumCount[i] <- "2"
+  } else if (deGromData$sumCount[i]== "Ahead") {
+    deGromData$sumCount[i] <- "3"
+  }   
+}
+
+for (i in 1:nrow(deGromData)) {
+  if (deGromData$scoring[i]== "Losing") {
+    deGromData$scoring[i] <- "1"
+  } else if (deGromData$scoring[i]== "Tied") {
+    deGromData$scoring[i] <- "2"
+  } else if (deGromData$scoring[i]== "Winning") {
+    deGromData$scoring[i] <- "3"
+  }   
+}
+
+
+deGromData$pitch_name<- as.factor(deGromData$pitch_name)
+deGromData$zone<- as.integer(deGromData$zone)
+deGromData$speedB <- as.integer(deGromData$speedB)
+deGromData$inning<- as.integer(deGromData$inning)
+deGromData$outs<- as.integer(deGromData$outs)
+deGromData$bat_side<- as.integer(deGromData$bat_side)
+deGromData$count<- as.integer(deGromData$count)
+deGromData$sumCount<- as.integer(deGromData$sumCount)
+deGromData$bases<- as.integer(deGromData$bases)
+deGromData$scoring<- as.integer(deGromData$scoring)
+
+summary(deGromData)
+str(deGromData)
+unique(deGromData)
+
+# Create actual random test data.  Followed guide in Homework hints
+splitPct <- .3
+deGromSplit  <- sample(nrow(deGromData), nrow(deGromData)*splitPct)
+testdeGrom <- deGromData[deGromSplit,]
+dim(testdeGrom)
+
+## Run decision tree analysis
+deGromTree1 <- rpart(pitch_name ~ sumCount, data=deGromData)
+deGromTree2 <- rpart(pitch_name ~ sumCount + outs +scoring + inning, data=deGromData)
+deGromTree3 <- rpart(pitch_name ~ zone + speedB, data=deGromData)
+deGromTree4 <- rpart(pitch_name ~ sumCount + outs + scoring + inning + bat_side + bases, data=deGromData)
+
+## Prediction
+
+predictdeGrom <- predict(deGromTree3, testdeGrom)
+
+maxValue <- max.col(predictdeGrom, "first")
+predPCT <- predictdeGrom[cbind(1:nrow(predictdeGrom), maxValue)]
+preddeGrom <- colnames(predictdeGrom)[maxValue]
+predictdeGrom <- as.data.frame(cbind(predPCT, preddeGrom, testdeGrom[1]))
+
+str(predictdeGrom)
+maxValue
+predPCT
+preddeGrom
+predictdeGrom
+str(testdeGrom)
+
+for (l in 1:nrow(predictdeGrom)) {
+if (predictdeGrom$preddeGrom[l] == predictdeGrom$pitch_name[l]) {
+    predictdeGrom$accuracy[l] <- 1
+  } else {
+    predictdeGrom$accuracy[l] <- 0
+  }
+}
+
+confusionMatrix(predictdeGrom$preddeGrom,predictdeGrom$pitch_name)
+(sum(predictdeGrom$accuracy)/nrow(predictdeGrom))
+
+
+
+##rpart.plot(dTree, box.palette = 0)
+##rpart.plot(deGromTree1, box.palette = "blue")
+
+freq(deGromData$pitch_name)
+freq(deGromData$inning)
+freq(deGromData$speedB)
+
+plotcp(deGromTree1)
+##fancyRpartPlot(deGromTree1)
+printcp(deGromTree1)
+
+plotcp(deGromTree2)
+##fancyRpartPlot(deGromTree2)
+printcp(deGromTree2)
+
+plotcp(deGromTree3)
+fancyRpartPlot(deGromTree3)
+printcp(deGromTree3)
+
+plotcp(deGromTree4)
+##fancyRpartPlot(deGromTree4)
+printcp(deGromTree4)
+
+```
+
+
+```{r Stroman decision tree}
+
+dataStroman <- pitchPredict[pitchPredict$player_name=="Marcus Stroman",]
+
+str(dataStroman)
+
+stromanData <- dataStroman[,-4]
+stromanData$pitch_name<- as.character(dataStroman$pitch_name)
+##stromanData$player_name<- as.character(dataStroman$player_name)
+stromanData$inning<- as.character(dataStroman$inning)
+stromanData$outs<- as.character(dataStroman$outs)
+stromanData$bat_side<- as.character(dataStroman$bat_side)
+stromanData$count<- as.character(dataStroman$count)
+stromanData$sumCount<- as.character(dataStroman$sumCount)
+stromanData$bases<- as.character(dataStroman$bases)
+stromanData$scoring<- as.character(dataStroman$scoring)
+
+unique(pitchData$pitch_name)
+
+for (i in 1:nrow(stromanData)) {
+  if (stromanData$pitch_name[i]== "2-Seam Fastball") {
+    stromanData$pitch_name[i] <- "1"
+  } else if (stromanData$pitch_name[i]== "4-Seam Fastball") {
+    stromanData$pitch_name[i] <- "2"
+  } else if (stromanData$pitch_name[i]== "Changeup") {
+    stromanData$pitch_name[i] <- "3"
+  } else if (stromanData$pitch_name[i]== "Curveball") {
+    stromanData$pitch_name[i] <- "4"
+  } else if (stromanData$pitch_name[i]== "Cutter") {
+    stromanData$pitch_name[i] <- "5"
+  } else if (stromanData$pitch_name[i]== "Slider") {
+    stromanData$pitch_name[i] <- "6"
+  } else if (stromanData$pitch_name[i]== "Sinker") {
+    stromanData$pitch_name[i] <- "7"
+  } else if (stromanData$pitch_name[i]== "Pitch Out") {
+    stromanData$pitch_name[i] <- "8"
+  } else if (stromanData$pitch_name[i]== "") {
+    stromanData$pitch_name[i] <- "9"
+  } 
+}
+
+stromanData$speed <- as.numeric(stromanData$speed)
+
+for (i in 1:nrow(stromanData)) {
+  if (stromanData$bat_side[i]== "R") {
+    stromanData$bat_side[i] <- "1"
+  } else if (stromanData$bat_side[i]== "L") {
+    stromanData$bat_side[i] <- "2"
+  }  
+}
+stromanData$count
+
+for (i in 1:nrow(stromanData)) {
+  if (stromanData$count[i]== "0 - 0") {
+    stromanData$count[i] <- "1"
+  } else if (stromanData$count[i]== "0 - 1") {
+    stromanData$count[i] <- "2"
+  } else if (stromanData$count[i]== "0 - 2") {
+    stromanData$count[i] <- "3"
+  } else if (stromanData$count[i]== "1 - 0") {
+    stromanData$count[i] <- "4"
+  } else if (stromanData$count[i]== "1 - 1") {
+    stromanData$count[i] <- "5"
+  } else if (stromanData$count[i]== "1 - 2") {
+    stromanData$count[i] <- "6"
+  } else if (stromanData$count[i]== "2 - 0") {
+    stromanData$count[i] <- "7"
+  } else if (stromanData$count[i]== "2 - 1") {
+    stromanData$count[i] <- "8"
+  } else if (stromanData$count[i]== "2 - 2") {
+    stromanData$count[i] <- "9"
+  } else if (stromanData$count[i]== "3 - 0") {
+    stromanData$count[i] <- "10"
+  } else if (stromanData$count[i]== "3 - 1") {
+    stromanData$count[i] <- "11"
+  } else if (stromanData$count[i]== "3 - 2") {
+    stromanData$count[i] <- "12"
+  }  
+}
+
+for (i in 1:nrow(stromanData)) {
+  if (stromanData$sumCount[i]== "Behind") {
+    stromanData$sumCount[i] <- "1"
+  } else if (stromanData$sumCount[i]== "Even") {
+    stromanData$sumCount[i] <- "2"
+  } else if (stromanData$sumCount[i]== "Ahead") {
+    stromanData$sumCount[i] <- "3"
+  }   
+}
+
+for (i in 1:nrow(stromanData)) {
+  if (stromanData$scoring[i]== "Losing") {
+    stromanData$scoring[i] <- "1"
+  } else if (stromanData$scoring[i]== "Tied") {
+    stromanData$scoring[i] <- "2"
+  } else if (stromanData$scoring[i]== "Winning") {
+    stromanData$scoring[i] <- "3"
+  }   
+}
+
+
+stromanData$pitch_name<- as.factor(stromanData$pitch_name)
+stromanData$zone<- as.integer(stromanData$zone)
+stromanData$speedB <- as.integer(stromanData$speedB)
+stromanData$inning<- as.integer(stromanData$inning)
+stromanData$outs<- as.integer(stromanData$outs)
+stromanData$bat_side<- as.integer(stromanData$bat_side)
+stromanData$count<- as.integer(stromanData$count)
+stromanData$sumCount<- as.integer(stromanData$sumCount)
+stromanData$bases<- as.integer(stromanData$bases)
+stromanData$scoring<- as.integer(stromanData$scoring)
+
+summary(stromanData)
+str(stromanData)
+unique(stromanData)
+
+# Set split as variable, good practice from HW hints
+splitPct <- .30
+
+# Create actual random test data.  Followed guide in Homework hints
+stromanSplit  <- sample(nrow(stromanData), nrow(stromanData)*splitPct)
+testStroman <- stromanData[stromanSplit,]
+dim(testStroman)
+
+## Run decision tree models
+testStroman
+stromanTree1 <- rpart(pitch_name ~ sumCount, data=stromanData)
+stromanTree2 <- rpart(pitch_name ~ sumCount + outs +scoring + inning, data=stromanData)
+stromanTree3 <- rpart(pitch_name ~ zone + speedB, data=stromanData)
+stromanTree4 <- rpart(speedB ~ sumCount + outs + scoring + inning + bat_side + bases, data=stromanData)
+
+## Prediction
+
+predictStroman <- predict(stromanTree3, testStroman)
+
+maxValue <- max.col(predictStroman, "first")
+predPCT <- predictStroman[cbind(1:nrow(predictStroman), maxValue)]
+predStroman <- colnames(predictStroman)[maxValue]
+predictStroman <- as.data.frame(cbind(predPCT, predStroman, testStroman[1]))
+
+str(predictStroman)
+maxValue
+predPCT
+predStroman
+predictStroman
+str(testStroman)
+
+for (l in 1:nrow(predictStroman)) {
+if (predictStroman$predStroman[l] == predictStroman$pitch_name[l]) {
+    predictStroman$accuracy[l] <- 1
+  } else {
+    predictStroman$accuracy[l] <- 0
+  }
+}
+
+confusionMatrix(predictStroman$predStroman,predictStroman$pitch_name)
+(sum(predictStroman$accuracy)/nrow(predictStroman))
+
+##rpart.plot(dTree, box.palette = 0)
+##rpart.plot(stromanTree1, box.palette = "blue")
+
+freq(dataStroman$pitch_name)
+freq(dataStroman$inning)
+freq(dataStroman$speedB)
+
+plotcp(stromanTree1)
+fancyRpartPlot(stromanTree1)
+printcp(stromanTree1)
+
+plotcp(stromanTree2)
+fancyRpartPlot(stromanTree2)
+printcp(stromanTree2)
+
+plotcp(stromanTree3)
+fancyRpartPlot(stromanTree3)
+printcp(stromanTree3)
+
+plotcp(stromanTree4)
+fancyRpartPlot(stromanTree4)
+printcp(stromanTree4)
+
+```
+
+
+```{r Diaz decision tree}
+dataDiaz <- pitchPredict[pitchPredict$player_name=="Edwin Diaz",]
+
+str(dataDiaz)
+
+diazData <- dataDiaz[,-4]
+diazData$pitch_name<- as.character(dataDiaz$pitch_name)
+##diazData$player_name<- as.character(dataDiaz$player_name)
+diazData$inning<- as.character(dataDiaz$inning)
+diazData$outs<- as.character(dataDiaz$outs)
+diazData$bat_side<- as.character(dataDiaz$bat_side)
+diazData$count<- as.character(dataDiaz$count)
+diazData$sumCount<- as.character(dataDiaz$sumCount)
+diazData$bases<- as.character(dataDiaz$bases)
+diazData$scoring<- as.character(dataDiaz$scoring)
+
+unique(pitchData$pitch_name)
+
+for (i in 1:nrow(diazData)) {
+  if (diazData$pitch_name[i]== "2-Seam Fastball") {
+    diazData$pitch_name[i] <- "1"
+  } else if (diazData$pitch_name[i]== "4-Seam Fastball") {
+    diazData$pitch_name[i] <- "2"
+  } else if (diazData$pitch_name[i]== "Changeup") {
+    diazData$pitch_name[i] <- "3"
+  } else if (diazData$pitch_name[i]== "Curveball") {
+    diazData$pitch_name[i] <- "4"
+  } else if (diazData$pitch_name[i]== "Cutter") {
+    diazData$pitch_name[i] <- "5"
+  } else if (diazData$pitch_name[i]== "Slider") {
+    diazData$pitch_name[i] <- "6"
+  } else if (diazData$pitch_name[i]== "Sinker") {
+    diazData$pitch_name[i] <- "7"
+  } else if (diazData$pitch_name[i]== "Pitch Out") {
+    diazData$pitch_name[i] <- "8"
+  } else if (diazData$pitch_name[i]== "") {
+    diazData$pitch_name[i] <- "9"
+  } 
+}
+
+diazData$speed <- as.numeric(diazData$speed)
+
+for (i in 1:nrow(diazData)) {
+  if (diazData$bat_side[i]== "R") {
+    diazData$bat_side[i] <- "1"
+  } else if (diazData$bat_side[i]== "L") {
+    diazData$bat_side[i] <- "2"
+  }  
+}
+
+for (i in 1:nrow(diazData)) {
+  if (diazData$count[i]== "0 - 0") {
+    diazData$count[i] <- "1"
+  } else if (diazData$count[i]== "0 - 1") {
+    diazData$count[i] <- "2"
+  } else if (diazData$count[i]== "0 - 2") {
+    diazData$count[i] <- "3"
+  } else if (diazData$count[i]== "1 - 0") {
+    diazData$count[i] <- "4"
+  } else if (diazData$count[i]== "1 - 1") {
+    diazData$count[i] <- "5"
+  } else if (diazData$count[i]== "1 - 2") {
+    diazData$count[i] <- "6"
+  } else if (diazData$count[i]== "2 - 0") {
+    diazData$count[i] <- "7"
+  } else if (diazData$count[i]== "2 - 1") {
+    diazData$count[i] <- "8"
+  } else if (diazData$count[i]== "2 - 2") {
+    diazData$count[i] <- "9"
+  } else if (diazData$count[i]== "3 - 0") {
+    diazData$count[i] <- "10"
+  } else if (diazData$count[i]== "3 - 1") {
+    diazData$count[i] <- "11"
+  } else if (diazData$count[i]== "3 - 2") {
+    diazData$count[i] <- "12"
+  }  
+}
+
+for (i in 1:nrow(diazData)) {
+  if (diazData$sumCount[i]== "Behind") {
+    diazData$sumCount[i] <- "1"
+  } else if (diazData$sumCount[i]== "Even") {
+    diazData$sumCount[i] <- "2"
+  } else if (diazData$sumCount[i]== "Ahead") {
+    diazData$sumCount[i] <- "3"
+  }   
+}
+
+for (i in 1:nrow(diazData)) {
+  if (diazData$scoring[i]== "Losing") {
+    diazData$scoring[i] <- "1"
+  } else if (diazData$scoring[i]== "Tied") {
+    diazData$scoring[i] <- "2"
+  } else if (diazData$scoring[i]== "Winning") {
+    diazData$scoring[i] <- "3"
+  }   
+}
+
+
+diazData$pitch_name<- as.factor(diazData$pitch_name)
+diazData$zone<- as.integer(diazData$zone)
+diazData$speedB <- as.integer(diazData$speedB)
+diazData$inning<- as.integer(diazData$inning)
+diazData$outs<- as.integer(diazData$outs)
+diazData$bat_side<- as.integer(diazData$bat_side)
+diazData$count<- as.integer(diazData$count)
+diazData$sumCount<- as.integer(diazData$sumCount)
+diazData$bases<- as.integer(diazData$bases)
+diazData$scoring<- as.integer(diazData$scoring)
+
+summary(diazData)
+str(diazData)
+unique(diazData)
+
+# Create actual random test data.  Followed guide in Homework hints
+splitPct <- .3
+diazSplit  <- sample(nrow(diazData), nrow(diazData)*splitPct)
+testDiaz <- diazData[diazSplit,]
+dim(testDiaz)
+
+## Run decision tree analysis
+diazTree1 <- rpart(pitch_name ~ sumCount, data=diazData)
+diazTree2 <- rpart(pitch_name ~ sumCount + outs +scoring + inning, data=diazData)
+diazTree3 <- rpart(pitch_name ~ zone + speedB, data=diazData)
+diazTree4 <- rpart(speedB ~ zone + pitch_name, data=diazData)
+
+## Prediction
+
+predictDiaz <- predict(diazTree3, testDiaz)
+
+maxValue <- max.col(predictDiaz, "first")
+predPCT <- predictDiaz[cbind(1:nrow(predictDiaz), maxValue)]
+predDiaz <- colnames(predictDiaz)[maxValue]
+predictDiaz <- as.data.frame(cbind(predPCT, predDiaz, testDiaz[1]))
+
+str(predictDiaz)
+maxValue
+predPCT
+predDiaz
+predictDiaz
+str(testDiaz)
+
+for (l in 1:nrow(predictDiaz)) {
+if (predictDiaz$predDiaz[l] == predictDiaz$pitch_name[l]) {
+    predictDiaz$accuracy[l] <- 1
+  } else {
+    predictDiaz$accuracy[l] <- 0
+  }
+}
+
+confusionMatrix(predictDiaz$predDiaz,predictDiaz$pitch_name)
+(sum(predictDiaz$accuracy)/nrow(predictDiaz))
+
+##rpart.plot(dTree, box.palette = 0)
+##rpart.plot(diazTree1, box.palette = "blue")
+
+freq(dataDiaz$pitch_name)
+freq(dataDiaz$inning)
+freq(dataDiaz$speedB)
+
+plotcp(diazTree1)
+##fancyRpartPlot(diazTree1)
+printcp(diazTree1)
+
+plotcp(diazTree2)
+##fancyRpartPlot(diazTree2)
+printcp(diazTree2)
+
+plotcp(diazTree3)
+fancyRpartPlot(diazTree3)
+printcp(diazTree3)
+
+plotcp(diazTree4)
+fancyRpartPlot(diazTree4)
+printcp(diazTree4)
+
+```
+
+```{r}
+txnsLugo <- dataLugo
+txnsLugo$zone <- as.factor(txnsLugo$zone)
+txnsLugo$speed <- as.factor(txnsLugo$speed)
+txnsLugo$speedB <- as.factor(txnsLugo$speedB)
+
+txnsLugo <- as(txnsLugo, "transactions")
+rulesLugo <- apriori(txnsLugo, parameter = list(support = 0.001, confidence = 0.8), appearance = list (lhs =c("speedB=3"),rhs=c("pitch_name=Sinker","pitch_name=Slider", "pitch_name=4-Seam Fastball", "pitch_name=Changeup", "pitch_name=Curveball","pitch_name=2-Seam Fastball", "pitch_name=Pitch Out")))
+
+inspect(rulesLugo)
+inspect(sort(rulesLugo, by = "lift"))
+```
+
+
