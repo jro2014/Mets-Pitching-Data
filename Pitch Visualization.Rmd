@@ -1,0 +1,294 @@
+---
+title: "Project 2.9.2020"
+author: "Charlie Dvorak" 
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Read in Data from database
+```{r}
+projectdf <- read.csv("/Users/charlie/Documents/Syracuse Grad School/IST 707 - Data Analytics/Project/Project Data.csv")
+
+```
+
+
+Clean Up Data
+```{r}
+#Turn plate location into a number from a factor
+projectdf$plate_x <- as.numeric(paste(projectdf$plate_x))
+projectdf$plate_z <- as.numeric(paste(projectdf$plate_z))
+
+```
+
+
+```{r}
+degromdf <- projectdf[projectdf$player_name =="Jacob deGrom",]
+
+```
+
+
+Set Strike Zone
+```{r}
+topKzone <- 3.5
+botKzone <- 1.6
+inKzone <- -0.95
+outKzone <- 0.95
+kZone <- data.frame(x= c(inKzone, inKzone, outKzone, outKzone, inKzone), c(botKzone, topKzone, topKzone, botKzone, botKzone))
+
+
+```
+
+
+
+
+Identify Color Pallette
+```{r}
+###load color library
+library(RColorBrewer)
+ 
+###make heat map colors
+brewer.pal(12, "RdYlBu")
+buylrd <- rev(brewer.pal(11,"RdYlBu"))
+
+
+```
+
+```{r}
+degromdf32RH <- degromdf[degromdf$balls == 3 & degromdf$strikes == 2 & degromdf$stand=="R",]
+#degromdf32
+
+smoothScatter(degromdf32RH$plate_x, degromdf32RH$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.5,1.5), ylim=c(1,4), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
+```{r}
+degromdf32RH <- degromdf[degromdf$balls == 3 & degromdf$strikes == 2 & degromdf$stand=="R",]
+#degromdf32
+
+smoothScatter(degromdf32RH$plate_x, degromdf32RH$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-3,3), ylim=c(0,5), nbin=100, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf)
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+
+```
+
+
+
+```{r}
+degromdf32LH <- degromdf[degromdf$balls == 3 & degromdf$strikes == 2 & degromdf$stand=="L",]
+#degromdf32
+
+smoothScatter(degromdf32LH$plate_x, degromdf32LH$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-3,3), ylim=c(0,5), nbin=100, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf)
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+
+```
+
+
+```{r}
+pitchdf <- degromdf[degromdf$balls == 3 & degromdf$strikes == 2 & degromdf$stand=="R",]
+#degromdf32
+
+smoothScatter(pitchdf$plate_x, pitchdf$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.5,1.5), ylim=c(1,4), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
+
+```{r}
+pitchdf <- degromdf[degromdf$balls < 3 & degromdf$strikes == 2 & degromdf$stand=="R",]
+#degromdf32
+
+smoothScatter(pitchdf$plate_x, pitchdf$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.25,1.25), ylim=c(1.25,3.75), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
+
+
+```{r}
+pitchdf <- degromdf[degromdf$events == "strikeout" & degromdf$stand=="R",]
+#degromdf32
+
+smoothScatter(pitchdf$plate_x, pitchdf$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.25,1.25), ylim=c(1.25,3.75), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
+```{r}
+pitchdf <- degromdf[degromdf$events == "strikeout" & degromdf$stand=="R" & degromdf$pitch_type == "FF",]
+#degromdf32
+
+smoothScatter(pitchdf$plate_x, pitchdf$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.25,1.25), ylim=c(1.25,3.75), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
+
+
+```{r}
+pitchdf <- degromdf[degromdf$events == "strikeout" & degromdf$stand=="L" & degromdf$pitch_type == "FF",]
+#degromdf32
+
+smoothScatter(pitchdf$plate_x, pitchdf$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.25,1.25), ylim=c(1.25,3.75), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
+
+
+```{r}
+pitchdf <- degromdf[degromdf$events == "strikeout" & degromdf$stand=="L" & degromdf$pitch_type != "FF",]
+#degromdf32
+
+smoothScatter(pitchdf$plate_x, pitchdf$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.25,1.25), ylim=c(1.25,3.75), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
+```{r}
+pitchdf <- degromdf[degromdf$stand=="R" & degromdf$pitch_type == "SL",]
+#degromdf32
+
+smoothScatter(pitchdf$plate_x, pitchdf$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.25,1.25), ylim=c(1.25,3.75), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
+
+```{r}
+pitchdf <- degromdf[degromdf$stand=="R" & degromdf$pitch_type == "CH",]
+#degromdf32
+
+smoothScatter(pitchdf$plate_x, pitchdf$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.25,1.25), ylim=c(1.25,3.75), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
+
+```{r}
+pitchdf <- degromdf[degromdf$stand=="L" & degromdf$pitch_type == "CH",]
+#degromdf32
+
+smoothScatter(pitchdf$plate_x, pitchdf$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.25,1.25), ylim=c(1.25,3.75), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
+
+```{r}
+pitchdf <- degromdf[degromdf$stand=="L" & degromdf$events == "home_run",]
+#degromdf32
+
+smoothScatter(pitchdf$plate_x, pitchdf$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.25,1.25), ylim=c(1.25,3.75), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
+
+```{r}
+pitchdf <- degromdf[degromdf$stand=="R" & degromdf$events == "home_run",]
+#degromdf32
+
+smoothScatter(pitchdf$plate_x, pitchdf$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.25,1.25), ylim=c(1.25,3.75), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
+```{r}
+#pitchdf <- Syndergaard[Syndergaard$inning=="6" & Syndergaard$stand=="R" & Syndergaard$strikes == 1 & Syndergaard$balls == 3 & Syndergaard$pitch_name == "Sinker",]
+
+pitchdf <- Syndergaard[Syndergaard$pitch_name == "Sinker",]
+#degromdf32
+
+smoothScatter(pitchdf$plate_x, pitchdf$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.25,1.25), ylim=c(1.25,3.75), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
+
+```{r}
+#pitchdf <- Syndergaard[Syndergaard$inning=="6" & Syndergaard$stand=="R" & Syndergaard$strikes == 1 & Syndergaard$balls == 3 & Syndergaard$pitch_name == "Sinker",]
+
+pitchdf <- Syndergaard[Syndergaard$pitch_name == "4-Seam Fastball" & Syndergaard$batter =="R",]
+#degromdf32
+
+smoothScatter(pitchdf$plate_x, pitchdf$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.25,1.25), ylim=c(1.25,3.75), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
+
+
+```{r}
+pitchdf <- degromdf[degromdf$stand=="R" & degromdf$balls == "0" & degromdf$strikes == "0" & degromdf$inning == "1" & degromdf$pitch_type == "FF",]
+
+
+
+smoothScatter(pitchdf$plate_x, pitchdf$plate_z, xlab="Horizontal Location", ylab="Vertical Location", xlim=c(-1.25,1.25), ylim=c(1.25,3.75), nbin=1000, colramp = colorRampPalette(c(buylrd)),nrpoints=Inf, pch="", cex=.7, transformation = function(x) x^.6, col="black")
+rect(inKzone, botKzone, outKzone, topKzone, border="black", lty="dotted", lwd=3)
+abline(h=2.8666, lwd=1, lty="dotted")
+abline(h=2.2334, lwd=1, lty="dotted")
+abline(v=-0.3166, lwd=1, lty="dotted")
+abline(v=0.3166, lwd=1, lty="dotted")
+
+```
+
