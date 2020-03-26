@@ -1,0 +1,650 @@
+---
+title: "Project EDA Code"
+author: "Charlie Dvorak"
+output: html_document
+---
+
+This code creates the tables and visuals for the EDA for Team Project IST707
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+libraries
+```{r}
+library(reshape2)
+library(ggplot2)
+```
+
+------------------Preprocessing to Create Aggregated Data Table -------------------------
+
+Setup Projectdf
+```{r}
+projectdf <- read.csv("/Users/charlie/Documents/Syracuse Grad School/IST 707 - Data Analytics/Project/Project Data.csv")
+
+
+```
+Clean Up Data
+```{r}
+#Turn plate location into a number from a factor
+projectdf$plate_x <- as.numeric(paste(projectdf$plate_x))
+projectdf$plate_z <- as.numeric(paste(projectdf$plate_z))
+
+```
+
+
+Create new dataset for EDA
+```{r}
+EDA_ds <- projectdf
+
+```
+
+Create a new column identifying if there was a strikeout
+Strikeout Recorded
+```{r}
+EDA_ds$Strikeout_Recorded <- ifelse(EDA_ds$events=="strikeout", "Y", ifelse(EDA_ds$events== "strikeout_double_play", "Y", "N"))
+
+```
+
+Create a new column identifying if there was a walk
+Walk Recoreded
+```{r}
+EDA_ds$Walk_Recorded <- ifelse(EDA_ds$events=="walk", "Y", "N")
+
+```
+
+Create a new column identifying if a hit was recorded
+Hit Recorded
+```{r}
+EDA_ds$Hit_Recorded <- ifelse(EDA_ds$events=="single", "Y", ifelse(EDA_ds$events=="double", "Y", ifelse(EDA_ds$events=="triple", "Y", ifelse(EDA_ds$events=="home_run", "Y", "N"))))
+
+```
+
+Create a new column identifying if a homerun was recorded
+
+```{r}
+EDA_ds$Homerun_Recorded <- ifelse(EDA_ds$events=="home_run", "Y", "N")
+
+```
+
+Outs recorded as result of pitch
+```{r}
+EDA_ds$Outs_Recorded <- ifelse(EDA_ds$events=="grounded_into_double_play", 2, ifelse(EDA_ds$events=="double_play", 2, ifelse(EDA_ds$events=="strikeout_double_play", 2, ifelse(EDA_ds$events=="field_out", 1 , ifelse(EDA_ds$events=="strikeout", 1, ifelse(EDA_ds$events=="force_out", 1, ifelse(EDA_ds$events=="sac_bunt", 1, ifelse(EDA_ds$events=="sac_fly", 1, ifelse(EDA_ds$events=="caught_stealing_2b", 1, ifelse(EDA_ds$events=="fielders_choice_out", 1, ifelse(EDA_ds$events=="pickoff_1b", 1, ifelse(EDA_ds$events== "pickoff_2b", 1, 0))))))))))))
+
+```
+
+Total Outs after Pitch
+```{r}
+EDA_ds$outs_after_pitch <- rowSums(EDA_ds[,c(35,94)])
+
+```
+
+Create Table for Aggregated Statistics
+```{r}
+Agg_Table_EDA <- data.frame("Pitcher" = c("Edwin Diaz", "Edwin Diaz", "Edwin Diaz", "Jacob deGrom", "Jacob deGrom", "Jacob deGrom", "Marcus Stroman", "Marcus Stroman", "Marcus Stroman", "Noah Syndergaard", "Noah Syndergaard", "Noah Syndergaard", "Seth Lugo", "Seth Lugo", "Seth Lugo"), "Year" = c("2017", "2018", "2019", "2017", "2018", "2019", "2017", "2018", "2019", "2017", "2018", "2019", "2017", "2018", "2019"))
+
+#Manually Sorting the rows
+Agg_Table_EDA <- Agg_Table_EDA[c(1,4,7,10,13,2,5,8,11,14,3,6,9,12,15),]
+```
+
+Total Pitches
+```{r}
+#2017
+Pitches_2017 <- c(length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2017"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2017"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2017"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2017"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2017"]))
+
+#2018
+Pitches_2018 <- c(length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2018"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2018"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2018"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2018"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2018"]))
+
+#2019
+Pitches_2019 <- c(length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2019"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2019"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2019"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2019"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2019"]))
+
+#Combining 2017, 2018, 2019 Pitch Data
+Agg_Table_EDA$Total_Pitches <- c(Pitches_2017, Pitches_2018, Pitches_2019)
+
+```
+
+
+Total Appearances
+```{r}
+#2017
+Appearances_2017 <- c(length(unique(EDA_ds$game_date[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year=="2017"])), length(unique(EDA_ds$game_date[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year=="2017"])),length(unique(EDA_ds$game_date[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year=="2017"])),length(unique(EDA_ds$game_date[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year=="2017"])),length(unique(EDA_ds$game_date[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year=="2017"])))
+
+#2018
+Appearances_2018 <- c(length(unique(EDA_ds$game_date[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year=="2018"])), length(unique(EDA_ds$game_date[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year=="2018"])),length(unique(EDA_ds$game_date[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year=="2018"])),length(unique(EDA_ds$game_date[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year=="2018"])),length(unique(EDA_ds$game_date[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year=="2018"])))
+
+#2019
+Appearances_2019 <- c(length(unique(EDA_ds$game_date[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year=="2019"])), length(unique(EDA_ds$game_date[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year=="2019"])),length(unique(EDA_ds$game_date[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year=="2019"])),length(unique(EDA_ds$game_date[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year=="2019"])),length(unique(EDA_ds$game_date[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year=="2019"])))
+
+#Combining 2017, 2018, 2019 Appearance Data
+Agg_Table_EDA$Total_Appearances <- c(Appearances_2017, Appearances_2018, Appearances_2019)
+
+```
+
+
+Total Innings
+```{r}
+#Create a seperate df to work with
+outdf <- EDA_ds[EDA_ds$outs_after_pitch!=0,]
+outdf$ConcatGame_Inning_Outs <- paste(outdf$game_date, " - ", outdf$inning, " - ", outdf$outs_after_pitch)
+outdf <- outdf[,c(6,27,96)]
+outdf <- unique(outdf)
+
+#2017
+Innings_2017 <- c((length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Edwin Diaz" & outdf$game_year=="2017"]) /3), (length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Jacob deGrom" & outdf$game_year=="2017"]) /3), (length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Marcus Stroman" & outdf$game_year=="2017"]) /3), (length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Noah Syndergaard" & outdf$game_year=="2017"]) /3), (length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Seth Lugo" & outdf$game_year=="2017"]) /3))
+
+#2018
+Innings_2018 <- c((length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Edwin Diaz" & outdf$game_year=="2018"]) /3), (length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Jacob deGrom" & outdf$game_year=="2018"]) /3), (length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Marcus Stroman" & outdf$game_year=="2018"]) /3), (length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Noah Syndergaard" & outdf$game_year=="2018"]) /3), (length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Seth Lugo" & outdf$game_year=="2018"]) /3))
+
+#2019
+Innings_2019 <- c((length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Edwin Diaz" & outdf$game_year=="2019"]) /3), (length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Jacob deGrom" & outdf$game_year=="2019"]) /3), (length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Marcus Stroman" & outdf$game_year=="2019"]) /3), (length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Noah Syndergaard" & outdf$game_year=="2019"]) /3), (length(outdf$ConcatGame_Inning_Outs[outdf$player_name=="Seth Lugo" & outdf$game_year=="2019"]) /3))
+
+#Combining 2017, 2018, 2019 Inning Data
+Agg_Table_EDA$Total_Innings <- c(Innings_2017, Innings_2018, Innings_2019)
+
+```
+
+Printing out Aggregated Table
+
+Strikeouts
+```{r}
+#2017
+Strikeouts_2017 <- c(length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2017" & EDA_ds$Strikeout_Recorded == "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2017" & EDA_ds$Strikeout_Recorded == "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2017" & EDA_ds$Strikeout_Recorded == "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2017" & EDA_ds$Strikeout_Recorded == "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2017" & EDA_ds$Strikeout_Recorded == "Y"]))
+
+#2018
+Strikeouts_2018 <- c(length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2018" & EDA_ds$Strikeout_Recorded == "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2018" & EDA_ds$Strikeout_Recorded == "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2018" & EDA_ds$Strikeout_Recorded == "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2018" & EDA_ds$Strikeout_Recorded == "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2018" & EDA_ds$Strikeout_Recorded == "Y"]))
+
+
+#2019
+Strikeouts_2019 <- c(length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2019" & EDA_ds$Strikeout_Recorded == "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2019" & EDA_ds$Strikeout_Recorded == "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2019" & EDA_ds$Strikeout_Recorded == "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2019" & EDA_ds$Strikeout_Recorded == "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2019" & EDA_ds$Strikeout_Recorded == "Y"]))
+
+
+#Combining 2017, 2018, 2019 Strikeout Data
+Agg_Table_EDA$Total_Strikeouts <- c(Strikeouts_2017, Strikeouts_2018, Strikeouts_2019)
+
+
+```
+
+
+K/9
+```{r}
+#2017
+K9_2017 <- c(((length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2017" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[1,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2017" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[2,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2017" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[3,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2017" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[4,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2017" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[5,5]))
+
+#2018
+K9_2018 <- c(((length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2018" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[6,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2018" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[7,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2018" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[8,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2018" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[9,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2018" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[10,5]))
+
+#2019
+K9_2019 <- c(((length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2019" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[11,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2019" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[12,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2019" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[13,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2019" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[14,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2019" & EDA_ds$Strikeout_Recorded == "Y"]) * 9) /Agg_Table_EDA[15,5]))
+
+
+#Combining 2017, 2018, 2019 K9 Data
+Agg_Table_EDA$K9 <- c(K9_2017, K9_2018, K9_2019)
+
+
+```
+
+
+Walks
+```{r}
+#2017
+Walks_2017 <- c(length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]))
+
+#2018
+Walks_2018 <- c(length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]))
+
+
+#2019
+Walks_2019 <- c(length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]), length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]))
+
+
+#Combining 2017, 2018, 2019 Total Walks Data
+Agg_Table_EDA$Total_Walks <- c(Walks_2017, Walks_2018, Walks_2019)
+
+
+```
+
+
+BB/9
+```{r}
+#2017
+BB9_2017 <- c(((length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[1,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[2,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[3,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[4,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[5,5]))
+
+#2018
+BB9_2018 <- c(((length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[6,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[7,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[8,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[9,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[10,5]))
+
+#2019
+BB9_2019 <- c(((length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[11,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[12,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[13,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[14,5]), ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]) * 9) /Agg_Table_EDA[15,5]))
+
+
+#Combining 2017, 2018, 2019 BB9 Data
+Agg_Table_EDA$BB9 <- c(BB9_2017, BB9_2018, BB9_2019)
+
+
+```
+
+WHIP
+```{r}
+#2017
+WHIP_2017 <- c(((length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2017" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[1,5]), 
+               ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2017" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[2,5]), 
+               ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2017" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[3,5]), 
+               ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2017" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[4,5]), 
+               ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2017" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2017" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[5,5]))
+
+#2018
+WHIP_2018 <- c(((length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2018" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[6,5]), 
+               ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2018" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[7,5]), 
+               ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2018" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[8,5]), 
+               ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2018" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[9,5]), 
+               ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2018" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2018" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[10,5]))
+
+
+#2019
+WHIP_2019 <- c(((length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Edwin Diaz" & EDA_ds$game_year == "2019" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[11,5]), 
+               ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Jacob deGrom" & EDA_ds$game_year == "2019" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[12,5]), 
+               ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Marcus Stroman" & EDA_ds$game_year == "2019" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[13,5]), 
+               ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Noah Syndergaard" & EDA_ds$game_year == "2019" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[14,5]), 
+               ((length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2019" & EDA_ds$Walk_Recorded== "Y"]) + length(EDA_ds$pitch_type[EDA_ds$player_name=="Seth Lugo" & EDA_ds$game_year == "2019" & EDA_ds$Hit_Recorded == "Y"])) / Agg_Table_EDA[15,5]))
+
+#Combining 2017, 2018, 2019 WHIP Data
+Agg_Table_EDA$WHIP <- c(WHIP_2017, WHIP_2018, WHIP_2019)
+
+```
+
+ERA
+```{r}
+#2017
+ERA_2017 <- c(3.27, 3.53, 3.09, 2.97, 4.71)
+
+# 2018
+ERA_2018 <- c(1.96, 1.70, 5.54, 3.03, 2.66 )
+
+#2019
+ERA_2019 <- c(5.59, 2.43, 3.22, 4.28, 2.70 )
+
+#Combining 2017, 2018, 2019 ERA Data
+Agg_Table_EDA$ERA <- c(ERA_2017, ERA_2018, ERA_2019)
+
+```
+
+Wins
+```{r}
+#2017
+Wins_2017 <- c(4, 15, 13, 1, 7)
+
+#2018
+Wins_2018 <- c(0, 10, 4, 13, 3)
+
+#2019
+Wins_2019 <- c(2, 11, 10, 10, 7)
+
+#Combining 2017, 2018, 2019 Wins Data
+Agg_Table_EDA$Wins <- c(Wins_2017, Wins_2018, Wins_2019)
+
+```
+
+
+Loses
+```{r}
+#2017
+Loses_2017 <- c(6, 10, 9, 2, 5)
+
+#2018
+Loses_2018 <- c(4, 9, 9, 4, 4)
+
+#2019
+Loses_2019 <- c(7, 8, 13, 8, 4)
+
+#Combining 2017, 2018, 2019 Loses Data
+Agg_Table_EDA$Loses <- c(Loses_2017, Loses_2018, Loses_2019)
+
+```
+
+
+Create Aggregated Table Performance for Each Player
+```{r}
+#Edwin Diaz
+Edwin_Diaz_Agg_Performance_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Edwin Diaz", c(2,7,10,11)]
+Edwin_Diaz_Agg_Performance_EDA <- melt(Edwin_Diaz_Agg_Performance_EDA)
+
+
+
+#Jacob deGrom
+Jacob_deGrom_Agg_Performance_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Jacob deGrom", c(2,7,10,11)]
+Jacob_deGrom_Agg_Performance_EDA <- melt(Jacob_deGrom_Agg_Performance_EDA)
+
+
+#Marcus Stroman
+Marcus_Stroman_Agg_Performance_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Marcus Stroman", c(2,7,10,11)]
+Marcus_Stroman_Agg_Performance_EDA <- melt(Marcus_Stroman_Agg_Performance_EDA)
+
+
+#Noah Syndergaard
+Noah_Syndergaard_Agg_Performance_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Noah Syndergaard", c(2,7,10,11)]
+Noah_Syndergaard_Agg_Performance_EDA <- melt(Noah_Syndergaard_Agg_Performance_EDA)
+
+
+#Seth Lugo
+Seth_Lugo_Agg_Performance_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Seth Lugo", c(2,7,10,11)]
+Seth_Lugo_Agg_Performance_EDA <- melt(Seth_Lugo_Agg_Performance_EDA)
+
+```
+
+Create Aggregated Table for Appearances and Pitches
+```{r}
+#Edwin Diaz
+Edwin_Diaz_Agg_Appearances_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Edwin Diaz", c(2,4,5)]
+Edwin_Diaz_Agg_Appearances_EDA <- melt(Edwin_Diaz_Agg_Appearances_EDA)
+
+
+#Jacob deGrom
+Jacob_deGrom_Agg_Appearances_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Jacob deGrom", c(2,4,5)]
+Jacob_deGrom_Agg_Appearances_EDA <- melt(Jacob_deGrom_Agg_Appearances_EDA)
+
+
+#Marcus Stroman
+Marcus_Stroman_Agg_Appearances_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Marcus Stroman", c(2,4,5)]
+Marcus_Stroman_Agg_Appearances_EDA <- melt(Marcus_Stroman_Agg_Appearances_EDA)
+
+
+#Noah Syndergaard
+Noah_Syndergaard_Agg_Appearances_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Noah Syndergaard", c(2,4,5)]
+Noah_Syndergaard_Agg_Appearances_EDA <- melt(Noah_Syndergaard_Agg_Appearances_EDA)
+
+
+#Seth Lugo
+Seth_Lugo_Agg_Appearances_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Seth Lugo", c(2,4,5)]
+Seth_Lugo_Agg_Appearances_EDA <- melt(Seth_Lugo_Agg_Appearances_EDA)
+
+
+```
+
+
+Create Aggregated Table for Wins and Loses
+```{r}
+#Edwin Diaz
+Edwin_Diaz_Agg_WinLose_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Edwin Diaz", c(2,12,13)]
+Edwin_Diaz_Agg_WinLose_EDA <- melt(Edwin_Diaz_Agg_WinLose_EDA)
+
+
+#Jacob deGrom
+Jacob_deGrom_Agg_WinLose_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Jacob deGrom", c(2,12,13)]
+Jacob_deGrom_Agg_WinLose_EDA <- melt(Jacob_deGrom_Agg_WinLose_EDA)
+
+
+#Marcus Stroman
+Marcus_Stroman_Agg_WinLose_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Marcus Stroman", c(2,12,13)]
+Marcus_Stroman_Agg_WinLose_EDA <- melt(Marcus_Stroman_Agg_WinLose_EDA)
+
+
+#Noah Syndergaard
+Noah_Syndergaard_Agg_WinLose_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Noah Syndergaard", c(2,12,13)]
+Noah_Syndergaard_Agg_WinLose_EDA <- melt(Noah_Syndergaard_Agg_WinLose_EDA)
+
+
+#Seth Lugo
+Seth_Lugo_Agg_WinLose_EDA <- Agg_Table_EDA[Agg_Table_EDA$Pitcher == "Seth Lugo", c(2,12,13)]
+Seth_Lugo_Agg_WinLose_EDA <- melt(Seth_Lugo_Agg_WinLose_EDA)
+
+```
+
+
+Pitch Breakdown Dataframes
+```{r}
+Edwin_Diaz_EDA_df <- EDA_ds[EDA_ds$player_name == "Edwin Diaz",c(27,79)]
+Jacob_deGrom_EDA_df <- EDA_ds[EDA_ds$player_name == "Jacob deGrom",c(27,79)]
+Marcus_Stroman_EDA_df <- EDA_ds[EDA_ds$player_name == "Marcus Stroman",c(27,79)]
+Noah_Syndergaard_EDA_df <- EDA_ds[EDA_ds$player_name == "Noah Syndergaard",c(27,79)]
+Seth_Lugo_EDA_df <- EDA_ds[EDA_ds$player_name == "Seth Lugo",c(27,79)]
+
+#Edwin Diaz
+ed_Pitch_Breakdown <- data.frame("Year" = c("2017", "2017", "2017", "2017", "2017", "2017", "2017", "2018", "2018", "2018", "2018", "2018", "2018", "2018", "2019", "2019", "2019", "2019", "2019", "2019", "2019"), "Pitch_Name" = c("4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker", "4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker", "4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker"))
+
+
+temp2017 <- c(((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="4-Seam Fastball" & Edwin_Diaz_EDA_df$game_year=="2017"]) / Agg_Table_EDA[1,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Slider" & Edwin_Diaz_EDA_df$game_year=="2017"]) / Agg_Table_EDA[1,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="2-Seam Fastball" & Edwin_Diaz_EDA_df$game_year=="2017"]) / Agg_Table_EDA[1,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Curveball" & Edwin_Diaz_EDA_df$game_year=="2017"]) / Agg_Table_EDA[1,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Changeup" & Edwin_Diaz_EDA_df$game_year=="2017"]) / Agg_Table_EDA[1,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Cutter" & Edwin_Diaz_EDA_df$game_year=="2017"]) / Agg_Table_EDA[1,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Sinker" & Edwin_Diaz_EDA_df$game_year=="2017"]) / Agg_Table_EDA[1,3]) * 100))
+
+temp2018 <- c(((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="4-Seam Fastball" & Edwin_Diaz_EDA_df$game_year=="2018"]) / Agg_Table_EDA[6,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Slider" & Edwin_Diaz_EDA_df$game_year=="2018"]) / Agg_Table_EDA[6,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="2-Seam Fastball" & Edwin_Diaz_EDA_df$game_year=="2018"]) / Agg_Table_EDA[6,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Curveball" & Edwin_Diaz_EDA_df$game_year=="2018"]) / Agg_Table_EDA[6,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Changeup" & Edwin_Diaz_EDA_df$game_year=="2018"]) / Agg_Table_EDA[6,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Cutter" & Edwin_Diaz_EDA_df$game_year=="2018"]) / Agg_Table_EDA[6,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Sinker" & Edwin_Diaz_EDA_df$game_year=="2018"]) / Agg_Table_EDA[6,3]) * 100))
+
+temp2019 <- c(((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="4-Seam Fastball" & Edwin_Diaz_EDA_df$game_year=="2019"]) / Agg_Table_EDA[11,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Slider" & Edwin_Diaz_EDA_df$game_year=="2019"]) / Agg_Table_EDA[11,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="2-Seam Fastball" & Edwin_Diaz_EDA_df$game_year=="2019"]) / Agg_Table_EDA[11,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Curveball" & Edwin_Diaz_EDA_df$game_year=="2019"]) / Agg_Table_EDA[11,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Changeup" & Edwin_Diaz_EDA_df$game_year=="2019"]) / Agg_Table_EDA[11,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Cutter" & Edwin_Diaz_EDA_df$game_year=="2019"]) / Agg_Table_EDA[11,3]) * 100), ((length(Edwin_Diaz_EDA_df$pitch_name[Edwin_Diaz_EDA_df$pitch_name=="Sinker" & Edwin_Diaz_EDA_df$game_year=="2019"]) / Agg_Table_EDA[11,3]) * 100))
+
+ed_Pitch_Breakdown$Percent_Of_Pitches <- c(temp2017, temp2018, temp2019)
+
+#format as a percentage
+ed_Pitch_Breakdown$Percent_Of_Pitches <- format(ed_Pitch_Breakdown$Percent_Of_Pitches, digits = 0, format = "f")
+ed_Pitch_Breakdown$Percent_Of_Pitches <- as.numeric(ed_Pitch_Breakdown$Percent_Of_Pitches)
+
+
+
+#Jacob deGrom
+jd_Pitch_Breakdown <- data.frame("Year" = c("2017", "2017", "2017", "2017", "2017", "2017", "2017", "2018", "2018", "2018", "2018", "2018", "2018", "2018", "2019", "2019", "2019", "2019", "2019", "2019", "2019"), "Pitch_Name" = c("4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker", "4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker", "4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker"))
+
+
+temp2017 <- c(((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="4-Seam Fastball" & Jacob_deGrom_EDA_df$game_year=="2017"]) / Agg_Table_EDA[2,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Slider" & Jacob_deGrom_EDA_df$game_year=="2017"]) / Agg_Table_EDA[2,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="2-Seam Fastball" & Jacob_deGrom_EDA_df$game_year=="2017"]) / Agg_Table_EDA[2,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Curveball" & Jacob_deGrom_EDA_df$game_year=="2017"]) / Agg_Table_EDA[2,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Changeup" & Jacob_deGrom_EDA_df$game_year=="2017"]) / Agg_Table_EDA[2,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Cutter" & Jacob_deGrom_EDA_df$game_year=="2017"]) / Agg_Table_EDA[2,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Sinker" & Jacob_deGrom_EDA_df$game_year=="2017"]) / Agg_Table_EDA[2,3]) * 100))
+
+temp2018 <- c(((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="4-Seam Fastball" & Jacob_deGrom_EDA_df$game_year=="2018"]) / Agg_Table_EDA[7,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Slider" & Jacob_deGrom_EDA_df$game_year=="2018"]) / Agg_Table_EDA[7,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="2-Seam Fastball" & Jacob_deGrom_EDA_df$game_year=="2018"]) / Agg_Table_EDA[7,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Curveball" & Jacob_deGrom_EDA_df$game_year=="2018"]) / Agg_Table_EDA[7,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Changeup" & Jacob_deGrom_EDA_df$game_year=="2018"]) / Agg_Table_EDA[7,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Cutter" & Jacob_deGrom_EDA_df$game_year=="2018"]) / Agg_Table_EDA[7,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Sinker" & Jacob_deGrom_EDA_df$game_year=="2018"]) / Agg_Table_EDA[7,3]) * 100))
+
+temp2019 <- c(((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="4-Seam Fastball" & Jacob_deGrom_EDA_df$game_year=="2019"]) / Agg_Table_EDA[12,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Slider" & Jacob_deGrom_EDA_df$game_year=="2019"]) / Agg_Table_EDA[12,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="2-Seam Fastball" & Jacob_deGrom_EDA_df$game_year=="2019"]) / Agg_Table_EDA[12,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Curveball" & Jacob_deGrom_EDA_df$game_year=="2019"]) / Agg_Table_EDA[12,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Changeup" & Jacob_deGrom_EDA_df$game_year=="2019"]) / Agg_Table_EDA[12,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Cutter" & Jacob_deGrom_EDA_df$game_year=="2019"]) / Agg_Table_EDA[12,3]) * 100), ((length(Jacob_deGrom_EDA_df$pitch_name[Jacob_deGrom_EDA_df$pitch_name=="Sinker" & Jacob_deGrom_EDA_df$game_year=="2019"]) / Agg_Table_EDA[12,3]) * 100))
+
+jd_Pitch_Breakdown$Percent_Of_Pitches <- c(temp2017, temp2018, temp2019)
+
+#format as a percentage
+jd_Pitch_Breakdown$Percent_Of_Pitches <- format(jd_Pitch_Breakdown$Percent_Of_Pitches, digits = 0, format = "f")
+jd_Pitch_Breakdown$Percent_Of_Pitches <- as.numeric(jd_Pitch_Breakdown$Percent_Of_Pitches)
+
+
+
+#Marcus Stroman
+ms_Pitch_Breakdown <- data.frame("Year" = c("2017", "2017", "2017", "2017", "2017", "2017", "2017", "2018", "2018", "2018", "2018", "2018", "2018", "2018", "2019", "2019", "2019", "2019", "2019", "2019", "2019"), "Pitch_Name" = c("4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker", "4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker", "4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker"))
+
+
+temp2017 <- c(((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="4-Seam Fastball" & Marcus_Stroman_EDA_df$game_year=="2017"]) / Agg_Table_EDA[3,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Slider" & Marcus_Stroman_EDA_df$game_year=="2017"]) / Agg_Table_EDA[3,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="2-Seam Fastball" & Marcus_Stroman_EDA_df$game_year=="2017"]) / Agg_Table_EDA[3,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Curveball" & Marcus_Stroman_EDA_df$game_year=="2017"]) / Agg_Table_EDA[3,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Changeup" & Marcus_Stroman_EDA_df$game_year=="2017"]) / Agg_Table_EDA[3,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Cutter" & Marcus_Stroman_EDA_df$game_year=="2017"]) / Agg_Table_EDA[3,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Sinker" & Marcus_Stroman_EDA_df$game_year=="2017"]) / Agg_Table_EDA[3,3]) * 100))
+
+temp2018 <- c(((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="4-Seam Fastball" & Marcus_Stroman_EDA_df$game_year=="2018"]) / Agg_Table_EDA[8,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Slider" & Marcus_Stroman_EDA_df$game_year=="2018"]) / Agg_Table_EDA[8,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="2-Seam Fastball" & Marcus_Stroman_EDA_df$game_year=="2018"]) / Agg_Table_EDA[8,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Curveball" & Marcus_Stroman_EDA_df$game_year=="2018"]) / Agg_Table_EDA[8,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Changeup" & Marcus_Stroman_EDA_df$game_year=="2018"]) / Agg_Table_EDA[8,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Cutter" & Marcus_Stroman_EDA_df$game_year=="2018"]) / Agg_Table_EDA[8,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Sinker" & Marcus_Stroman_EDA_df$game_year=="2018"]) / Agg_Table_EDA[8,3]) * 100))
+
+temp2019 <- c(((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="4-Seam Fastball" & Marcus_Stroman_EDA_df$game_year=="2019"]) / Agg_Table_EDA[13,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Slider" & Marcus_Stroman_EDA_df$game_year=="2019"]) / Agg_Table_EDA[13,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="2-Seam Fastball" & Marcus_Stroman_EDA_df$game_year=="2019"]) / Agg_Table_EDA[13,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Curveball" & Marcus_Stroman_EDA_df$game_year=="2019"]) / Agg_Table_EDA[13,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Changeup" & Marcus_Stroman_EDA_df$game_year=="2019"]) / Agg_Table_EDA[13,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Cutter" & Marcus_Stroman_EDA_df$game_year=="2019"]) / Agg_Table_EDA[13,3]) * 100), ((length(Marcus_Stroman_EDA_df$pitch_name[Marcus_Stroman_EDA_df$pitch_name=="Sinker" & Marcus_Stroman_EDA_df$game_year=="2019"]) / Agg_Table_EDA[13,3]) * 100))
+
+ms_Pitch_Breakdown$Percent_Of_Pitches <- c(temp2017, temp2018, temp2019)
+
+#format as a percentage
+ms_Pitch_Breakdown$Percent_Of_Pitches <- format(ms_Pitch_Breakdown$Percent_Of_Pitches, digits = 0, format = "f")
+ms_Pitch_Breakdown$Percent_Of_Pitches <- as.numeric(ms_Pitch_Breakdown$Percent_Of_Pitches)
+
+
+
+#Noah Syndergaard
+ns_Pitch_Breakdown <- data.frame("Year" = c("2017", "2017", "2017", "2017", "2017", "2017", "2017", "2018", "2018", "2018", "2018", "2018", "2018", "2018", "2019", "2019", "2019", "2019", "2019", "2019", "2019"), "Pitch_Name" = c("4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker", "4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker", "4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker"))
+
+
+temp2017 <- c(((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="4-Seam Fastball" & Noah_Syndergaard_EDA_df$game_year=="2017"]) / Agg_Table_EDA[4,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Slider" & Noah_Syndergaard_EDA_df$game_year=="2017"]) / Agg_Table_EDA[4,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="2-Seam Fastball" & Noah_Syndergaard_EDA_df$game_year=="2017"]) / Agg_Table_EDA[4,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Curveball" & Noah_Syndergaard_EDA_df$game_year=="2017"]) / Agg_Table_EDA[4,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Changeup" & Noah_Syndergaard_EDA_df$game_year=="2017"]) / Agg_Table_EDA[4,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Cutter" & Noah_Syndergaard_EDA_df$game_year=="2017"]) / Agg_Table_EDA[4,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Sinker" & Noah_Syndergaard_EDA_df$game_year=="2017"]) / Agg_Table_EDA[4,3]) * 100))
+
+temp2018 <- c(((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="4-Seam Fastball" & Noah_Syndergaard_EDA_df$game_year=="2018"]) / Agg_Table_EDA[9,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Slider" & Noah_Syndergaard_EDA_df$game_year=="2018"]) / Agg_Table_EDA[9,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="2-Seam Fastball" & Noah_Syndergaard_EDA_df$game_year=="2018"]) / Agg_Table_EDA[9,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Curveball" & Noah_Syndergaard_EDA_df$game_year=="2018"]) / Agg_Table_EDA[9,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Changeup" & Noah_Syndergaard_EDA_df$game_year=="2018"]) / Agg_Table_EDA[9,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Cutter" & Noah_Syndergaard_EDA_df$game_year=="2018"]) / Agg_Table_EDA[9,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Sinker" & Noah_Syndergaard_EDA_df$game_year=="2018"]) / Agg_Table_EDA[9,3]) * 100))
+
+temp2019 <- c(((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="4-Seam Fastball" & Noah_Syndergaard_EDA_df$game_year=="2019"]) / Agg_Table_EDA[14,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Slider" & Noah_Syndergaard_EDA_df$game_year=="2019"]) / Agg_Table_EDA[14,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="2-Seam Fastball" & Noah_Syndergaard_EDA_df$game_year=="2019"]) / Agg_Table_EDA[14,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Curveball" & Noah_Syndergaard_EDA_df$game_year=="2019"]) / Agg_Table_EDA[14,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Changeup" & Noah_Syndergaard_EDA_df$game_year=="2019"]) / Agg_Table_EDA[14,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Cutter" & Noah_Syndergaard_EDA_df$game_year=="2019"]) / Agg_Table_EDA[14,3]) * 100), ((length(Noah_Syndergaard_EDA_df$pitch_name[Noah_Syndergaard_EDA_df$pitch_name=="Sinker" & Noah_Syndergaard_EDA_df$game_year=="2019"]) / Agg_Table_EDA[14,3]) * 100))
+
+ns_Pitch_Breakdown$Percent_Of_Pitches <- c(temp2017, temp2018, temp2019)
+
+#format as a percentage
+ns_Pitch_Breakdown$Percent_Of_Pitches <- format(ns_Pitch_Breakdown$Percent_Of_Pitches, digits = 0, format = "f")
+ns_Pitch_Breakdown$Percent_Of_Pitches <- as.numeric(ns_Pitch_Breakdown$Percent_Of_Pitches)
+
+
+
+#Seth Lugo
+sl_Pitch_Breakdown <- data.frame("Year" = c("2017", "2017", "2017", "2017", "2017", "2017", "2017", "2018", "2018", "2018", "2018", "2018", "2018", "2018", "2019", "2019", "2019", "2019", "2019", "2019", "2019"), "Pitch_Name" = c("4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker", "4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker", "4-Seam Fastball", "Slider", "2-Seam Fastball", "Curveball", "Changeup", "Cutter", "Sinker"))
+
+
+temp2017 <- c(((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="4-Seam Fastball" & Seth_Lugo_EDA_df$game_year=="2017"]) / Agg_Table_EDA[5,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Slider" & Seth_Lugo_EDA_df$game_year=="2017"]) / Agg_Table_EDA[5,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="2-Seam Fastball" & Seth_Lugo_EDA_df$game_year=="2017"]) / Agg_Table_EDA[5,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Curveball" & Seth_Lugo_EDA_df$game_year=="2017"]) / Agg_Table_EDA[5,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Changeup" & Seth_Lugo_EDA_df$game_year=="2017"]) / Agg_Table_EDA[5,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Cutter" & Seth_Lugo_EDA_df$game_year=="2017"]) / Agg_Table_EDA[5,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Sinker" & Seth_Lugo_EDA_df$game_year=="2017"]) / Agg_Table_EDA[5,3]) * 100))
+
+temp2018 <- c(((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="4-Seam Fastball" & Seth_Lugo_EDA_df$game_year=="2018"]) / Agg_Table_EDA[10,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Slider" & Seth_Lugo_EDA_df$game_year=="2018"]) / Agg_Table_EDA[10,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="2-Seam Fastball" & Seth_Lugo_EDA_df$game_year=="2018"]) / Agg_Table_EDA[10,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Curveball" & Seth_Lugo_EDA_df$game_year=="2018"]) / Agg_Table_EDA[10,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Changeup" & Seth_Lugo_EDA_df$game_year=="2018"]) / Agg_Table_EDA[10,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Cutter" & Seth_Lugo_EDA_df$game_year=="2018"]) / Agg_Table_EDA[10,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Sinker" & Seth_Lugo_EDA_df$game_year=="2018"]) / Agg_Table_EDA[10,3]) * 100))
+
+temp2019 <- c(((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="4-Seam Fastball" & Seth_Lugo_EDA_df$game_year=="2019"]) / Agg_Table_EDA[15,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Slider" & Seth_Lugo_EDA_df$game_year=="2019"]) / Agg_Table_EDA[15,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="2-Seam Fastball" & Seth_Lugo_EDA_df$game_year=="2019"]) / Agg_Table_EDA[15,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Curveball" & Seth_Lugo_EDA_df$game_year=="2019"]) / Agg_Table_EDA[15,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Changeup" & Seth_Lugo_EDA_df$game_year=="2019"]) / Agg_Table_EDA[15,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Cutter" & Seth_Lugo_EDA_df$game_year=="2019"]) / Agg_Table_EDA[15,3]) * 100), ((length(Seth_Lugo_EDA_df$pitch_name[Seth_Lugo_EDA_df$pitch_name=="Sinker" & Seth_Lugo_EDA_df$game_year=="2019"]) / Agg_Table_EDA[15,3]) * 100))
+
+sl_Pitch_Breakdown$Percent_Of_Pitches <- c(temp2017, temp2018, temp2019)
+
+#format as a percentage
+sl_Pitch_Breakdown$Percent_Of_Pitches <- format(sl_Pitch_Breakdown$Percent_Of_Pitches, digits = 0, format = "f")
+sl_Pitch_Breakdown$Percent_Of_Pitches <- as.numeric(sl_Pitch_Breakdown$Percent_Of_Pitches)
+
+
+```
+
+------------------------------EDA Visualizations-----------------------------------------
+
+----------Edwin Diaz-----------
+
+Performance Visualization
+```{r}
+ggplot(Edwin_Diaz_Agg_Performance_EDA, aes(x = Edwin_Diaz_Agg_Performance_EDA$Year, y = Edwin_Diaz_Agg_Performance_EDA$value, fill = Edwin_Diaz_Agg_Performance_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Edwin Diaz Performance") + theme_minimal() + labs(fill = "Performance Measures") + ylim(c(0,16))
+
+```
+
+Appearance Visualization
+```{r}
+ggplot(Edwin_Diaz_Agg_Appearances_EDA, aes(x = Edwin_Diaz_Agg_Appearances_EDA$Year, y = Edwin_Diaz_Agg_Appearances_EDA$value, fill = Edwin_Diaz_Agg_Appearances_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Edwin Diaz Appearances") + theme_minimal() + labs(fill = "Appearances Measures") + ylim(c(0,250))
+
+```
+
+Win Lose Visualization
+```{r}
+ggplot(Edwin_Diaz_Agg_WinLose_EDA, aes(x = Edwin_Diaz_Agg_WinLose_EDA$Year, y = Edwin_Diaz_Agg_WinLose_EDA$value, fill = Edwin_Diaz_Agg_WinLose_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Edwin Diaz Win Lose Totals") + theme_minimal() + labs(fill = "Measures") + ylim(c(0,16))
+
+```
+
+
+Pitch Breakdown Visualization
+```{r}
+ggplot(ed_Pitch_Breakdown, aes(x=ed_Pitch_Breakdown$Year, y=ed_Pitch_Breakdown$Percent_Of_Pitches, fill = ed_Pitch_Breakdown$Pitch_Name)) + geom_bar(stat="identity") + theme_minimal()  + labs(x="Year", y="Percentage of Pitch Thrown(%)", title = "Edwin Diaz Pitch Breakdown") + scale_fill_discrete(name ="Pitch Type")+ geom_text(aes(label = paste(ed_Pitch_Breakdown$Percent_Of_Pitches, "%")), position = position_stack(vjust = .5))
+
+```
+
+
+----------Jacob deGrom-----------
+
+Performance Visualization
+```{r}
+ggplot(Jacob_deGrom_Agg_Performance_EDA, aes(x = Jacob_deGrom_Agg_Performance_EDA$Year, y = Jacob_deGrom_Agg_Performance_EDA$value, fill = Jacob_deGrom_Agg_Performance_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Jacob deGrom Performance") + theme_minimal() + labs(fill = "Performance Measures") + ylim(c(0,16))
+
+
+```
+
+Appearance Visualization
+```{r}
+ggplot(Jacob_deGrom_Agg_Appearances_EDA, aes(x = Jacob_deGrom_Agg_Appearances_EDA$Year, y = Jacob_deGrom_Agg_Appearances_EDA$value, fill = Jacob_deGrom_Agg_Appearances_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Jacob deGrom Appearances") + theme_minimal() + labs(fill = "Appearances Measures") + ylim(c(0,250))
+
+```
+
+Win Lose Visualization
+```{r}
+ggplot(Jacob_deGrom_Agg_WinLose_EDA, aes(x = Jacob_deGrom_Agg_WinLose_EDA$Year, y = Jacob_deGrom_Agg_WinLose_EDA$value, fill = Jacob_deGrom_Agg_WinLose_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Jacob deGrom Win Lose Totals") + theme_minimal() + labs(fill = "Measures") + ylim(c(0,16))
+
+```
+
+
+Pitch Breakdown Visualization
+```{r}
+ggplot(jd_Pitch_Breakdown, aes(x=jd_Pitch_Breakdown$Year, y=jd_Pitch_Breakdown$Percent_Of_Pitches, fill = jd_Pitch_Breakdown$Pitch_Name)) + geom_bar(stat="identity") + theme_minimal()  + labs(x="Year", y="Percentage of Pitch Thrown(%)", title = "Jacob deGrom Pitch Breakdown") + scale_fill_discrete(name ="Pitch Type")+ geom_text(aes(label = paste(jd_Pitch_Breakdown$Percent_Of_Pitches, "%")), position = position_stack(vjust = .5))
+
+```
+
+----------Marcus Stroman-----------
+
+Performance Visualization
+```{r}
+ggplot(Marcus_Stroman_Agg_Performance_EDA, aes(x = Marcus_Stroman_Agg_Performance_EDA$Year, y = Marcus_Stroman_Agg_Performance_EDA$value, fill = Marcus_Stroman_Agg_Performance_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Marcus Stroman Performance") + theme_minimal() + labs(fill = "Performance Measures") + ylim(c(0,16))
+
+
+```
+
+Appearance Visualization
+```{r}
+ggplot(Marcus_Stroman_Agg_Appearances_EDA, aes(x = Marcus_Stroman_Agg_Appearances_EDA$Year, y = Marcus_Stroman_Agg_Appearances_EDA$value, fill = Marcus_Stroman_Agg_Appearances_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Marcus Stroman Appearances") + theme_minimal() + labs(fill = "Appearances Measures") + ylim(c(0,250))
+
+```
+
+Win Lose Visualization
+```{r}
+ggplot(Marcus_Stroman_Agg_WinLose_EDA, aes(x = Marcus_Stroman_Agg_WinLose_EDA$Year, y = Marcus_Stroman_Agg_WinLose_EDA$value, fill = Marcus_Stroman_Agg_WinLose_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Marcus Stroman Win Lose Totals") + theme_minimal() + labs(fill = "Measures") + ylim(c(0,16))
+
+```
+
+
+Pitch Breakdown Visualization
+```{r}
+ggplot(ms_Pitch_Breakdown, aes(x=ms_Pitch_Breakdown$Year, y=ms_Pitch_Breakdown$Percent_Of_Pitches, fill = ms_Pitch_Breakdown$Pitch_Name)) + geom_bar(stat="identity") + theme_minimal()  + labs(x="Year", y="Percentage of Pitch Thrown(%)", title = "Marcus Stroman Pitch Breakdown") + scale_fill_discrete(name ="Pitch Type")+ geom_text(aes(label = paste(ms_Pitch_Breakdown$Percent_Of_Pitches, "%")), position = position_stack(vjust = .5))
+
+```
+
+----------Noah Syndergaard-----------
+
+Performance Visualization
+```{r}
+ggplot(Noah_Syndergaard_Agg_Performance_EDA, aes(x = Noah_Syndergaard_Agg_Performance_EDA$Year, y = Noah_Syndergaard_Agg_Performance_EDA$value, fill = Noah_Syndergaard_Agg_Performance_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Noah Syndergaard Performance") + theme_minimal() + labs(fill = "Performance Measures") + ylim(c(0,16))
+
+
+```
+
+Appearance Visualization
+```{r}
+ggplot(Noah_Syndergaard_Agg_Appearances_EDA, aes(x = Noah_Syndergaard_Agg_Appearances_EDA$Year, y = Noah_Syndergaard_Agg_Appearances_EDA$value, fill = Noah_Syndergaard_Agg_Appearances_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Noah Syndergaard Appearances") + theme_minimal() + labs(fill = "Appearances Measures") 
+
+```
+
+Win Lose Visualization
+```{r}
+ggplot(Noah_Syndergaard_Agg_WinLose_EDA, aes(x = Noah_Syndergaard_Agg_WinLose_EDA$Year, y = Noah_Syndergaard_Agg_WinLose_EDA$value, fill = Noah_Syndergaard_Agg_WinLose_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Noah Syndergaard Win Lose Totals") + theme_minimal() + labs(fill = "Measures") + ylim(c(0,16))
+
+```
+
+
+Pitch Breakdown Visualization
+```{r}
+ggplot(ns_Pitch_Breakdown, aes(x=ns_Pitch_Breakdown$Year, y=ns_Pitch_Breakdown$Percent_Of_Pitches, fill = ns_Pitch_Breakdown$Pitch_Name)) + geom_bar(stat="identity") + theme_minimal()  + labs(x="Year", y="Percentage of Pitch Thrown(%)", title = "Noah Syndergaard Pitch Breakdown") + scale_fill_discrete(name ="Pitch Type")+ geom_text(aes(label = paste(ns_Pitch_Breakdown$Percent_Of_Pitches, "%")), position = position_stack(vjust = .5))
+
+```
+
+
+----------Seth Lugo-----------
+
+Performance Visualization
+```{r}
+ggplot(Seth_Lugo_Agg_Performance_EDA, aes(x = Seth_Lugo_Agg_Performance_EDA$Year, y = Seth_Lugo_Agg_Performance_EDA$value, fill = Seth_Lugo_Agg_Performance_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Seth Lugo Performance") + theme_minimal() + labs(fill = "Performance Measures") + ylim(c(0,16))
+
+
+```
+
+Appearance Visualization
+```{r}
+ggplot(Seth_Lugo_Agg_Appearances_EDA, aes(x = Seth_Lugo_Agg_Appearances_EDA$Year, y = Seth_Lugo_Agg_Appearances_EDA$value, fill = Seth_Lugo_Agg_Appearances_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Seth Lugo Appearances") + theme_minimal() + labs(fill = "Appearances Measures")
+
+```
+
+Win Lose Visualization
+```{r}
+ggplot(Seth_Lugo_Agg_WinLose_EDA, aes(x = Seth_Lugo_Agg_WinLose_EDA$Year, y = Seth_Lugo_Agg_WinLose_EDA$value, fill = Seth_Lugo_Agg_WinLose_EDA$variable)) +
+  geom_col(position = "dodge") + xlab("Year") + ylab("Value") + ggtitle("Seth Lugo Win Lose Totals") + theme_minimal() + labs(fill = "Measures") + ylim(c(0,16))
+
+```
+
+
+Pitch Breakdown Visualization
+```{r}
+ggplot(sl_Pitch_Breakdown, aes(x=sl_Pitch_Breakdown$Year, y=sl_Pitch_Breakdown$Percent_Of_Pitches, fill = sl_Pitch_Breakdown$Pitch_Name)) + geom_bar(stat="identity") + theme_minimal()  + labs(x="Year", y="Percentage of Pitch Thrown(%)", title = "Seth Lugo Pitch Breakdown") + scale_fill_discrete(name ="Pitch Type")+ geom_text(aes(label = paste(sl_Pitch_Breakdown$Percent_Of_Pitches, "%")), position = position_stack(vjust = .5))
+
+
+```
+
